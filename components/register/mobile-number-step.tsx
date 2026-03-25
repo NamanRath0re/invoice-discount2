@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Smartphone } from "lucide-react"
 import Link from "next/link"
+import axios from "axios"
 
 interface MobileNumberStepProps {
   onSubmit: (mobileNumber: string) => void
@@ -38,12 +39,33 @@ export function MobileNumberStep({ onSubmit }: MobileNumberStepProps) {
     }
 
     setIsLoading(true)
-    
+    try {
     // Simulate API call to send OTP
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    
+    // await new Promise((resolve) => setTimeout(resolve, 1000))
+    // const response = await fetch("https://192.168.6.6/2013/api/v1/kyc/send-otp", {
+    //   method: "POST",
+    //   headers: {
+    //     "content-type": "application/json", 
+    //     // "X-tenant-code": "demo",
+    //     "Accept": "application/json",
+    //     "X-Requested-With": "XMLHttpRequest",
+    //   },
+    //   body: JSON.stringify({ mobile: mobileNumber }),
+    // })
+    const response =await axios.post("/api/send-otp", { mobile: mobileNumber })
+    console.log("OTP API response:", response)
+    // if (!response.ok) {
+    //   setError("Failed to send OTP. Please try again.")
+    //   setIsLoading(false)
+    //   return
+    // } 
+      onSubmit(mobileNumber)
+    } catch (error) {
+      console.error("Error sending OTP:", error)
+      setError("An error occurred while sending OTP. Please try again.")
+    } finally {
     setIsLoading(false)
-    onSubmit(mobileNumber)
+    }
   }
 
   return (
