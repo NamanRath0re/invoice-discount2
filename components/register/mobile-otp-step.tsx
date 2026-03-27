@@ -62,6 +62,7 @@ export function MobileOtpStep({ onComplete }: MobileOtpStepProps) {
         body: JSON.stringify({ mobile }),
       })
       const data = await res.json()
+      console.log("Send OTP response:", data)
       if (!data.success) throw new Error(data.message ?? "Failed to send OTP")
       setOtpState("sent"); setOtp(""); setOtpError(""); startTimer()
     } catch (e) {

@@ -24,7 +24,7 @@ export function AppFooter() {
         alt="BridgeLogic Logo"
         width={90}
         height={24}
-        style={{ width: 90, height: "auto" }}
+        style={{ width: 90, height: "auto", paddingBottom: '6px' }}
         className="object-contain"
       />
     </footer>

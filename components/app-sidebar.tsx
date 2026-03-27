@@ -73,14 +73,54 @@
 //   )
 // }
 
+// import * as React from "react"
+// import { auth } from "@/auth"
+// import { DynamicNavSection } from "@/components/dynamic-nav-section"
+// import Image from "next/image"
+// import {
+//   Sidebar,
+//   SidebarContent,
+//   SidebarHeader,
+//   SidebarRail,
+// } from "@/components/ui/sidebar"
+
+// export async function AppSidebar({
+//   ...props
+// }: React.ComponentProps<typeof Sidebar>) {
+//   const session = await auth()
+//   const menu    = session?.user?.menu ?? []
+
+//   return (
+//     <Sidebar {...props}>
+//       {/* ── Logo ─────────────────────────────────────────────── */}
+//       <SidebarHeader className="px-4 py-5">
+//         <Image
+//           src="/logo.png"
+//           alt="Logo"
+//           width={110}
+//           height={36}
+//           style={{ width: 110, height: "auto" }}
+//           className="object-contain"
+//           priority
+//         />
+//       </SidebarHeader>
+
+//       {/* ── Nav: built dynamically from API menu ─────────────── */}
+//       <SidebarContent className="gap-0.5 mt-2">
+//         <DynamicNavSection menu={menu} />
+//       </SidebarContent>
+
+//       <SidebarRail />
+//     </Sidebar>
+//   )
+// }
+
 import * as React from "react"
 import { auth } from "@/auth"
 import { DynamicNavSection } from "@/components/dynamic-nav-section"
-import Image from "next/image"
 import {
   Sidebar,
   SidebarContent,
-  SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
 
@@ -91,25 +131,15 @@ export async function AppSidebar({
   const menu    = session?.user?.menu ?? []
 
   return (
-    <Sidebar {...props}>
-      {/* ── Logo ─────────────────────────────────────────────── */}
-      <SidebarHeader className="px-4 py-5">
-        <Image
-          src="/logo.png"
-          alt="Logo"
-          width={110}
-          height={36}
-          style={{ width: 110, height: "auto" }}
-          className="object-contain"
-          priority
-        />
-      </SidebarHeader>
-
-      {/* ── Nav: built dynamically from API menu ─────────────── */}
-      <SidebarContent className="gap-0.5 mt-2">
+    <Sidebar
+      collapsible="icon"
+      // --sidebar-offset tells the sidebar container to start below the 56px (h-14) topbar
+      style={{ "--sidebar-offset": "3.5rem" } as React.CSSProperties}
+      {...props}
+    >
+      <SidebarContent className="gap-0 pt-2">
         <DynamicNavSection menu={menu} />
       </SidebarContent>
-
       <SidebarRail />
     </Sidebar>
   )
