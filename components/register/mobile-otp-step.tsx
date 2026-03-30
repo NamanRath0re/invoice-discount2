@@ -93,14 +93,14 @@ export function MobileOtpStep({ onComplete }: MobileOtpStepProps) {
     setSubmitError("")
     setSubmitting(true)
     try {
-      const res = await fetch(`${BASE}/kyc/submitCustomer`, {
+      const res = await fetch(`${BASE}/kyc/submitForm`, {
         method: "POST", headers: API_HEADERS,
-        body: JSON.stringify({ mobile }),
+        body: JSON.stringify({ mobile_no: mobile, form_data: { mobile_no: mobile } }),
       })
       const data = await res.json()
-      if (!data.success || !data.data?.[0])
+      if (!data.success || !data.data)
         throw new Error(data.message ?? "Submission failed")
-      onComplete(mobile, String(data.data[0].customer_id))
+      onComplete(mobile, String(data.data?.customer_id))
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Submission failed. Please try again.")
     } finally { setSubmitting(false) }

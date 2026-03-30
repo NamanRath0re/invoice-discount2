@@ -52,7 +52,7 @@ export default function ProtectedLayout({
         <div className="flex flex-1">
       {/* collapsible="icon" and sidebar-offset are set inside AppSidebar */}
           <AppSidebar />
-          <SidebarInset className="flex flex-col flex-1">
+          <SidebarInset className="flex flex-col flex-1 border-l">
             <div className="flex flex-1 flex-col p-4 pb-14">
               {children}
             </div>
