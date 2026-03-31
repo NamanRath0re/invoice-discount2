@@ -38,6 +38,7 @@
   //     </div>
   //   )
   // }
+  
 "use client"
 import { LoginForm } from "@/components/login-form"
 import Image from "next/image"
@@ -50,7 +51,8 @@ export default function LoginPage() {
           src="/finanza.png"
           alt="Finanza App"
           fill
-          className="object-contain p-10 dark:brightness-[0.2] dark:grayscale"
+          // className="object-contain p-10 dark:brightness-[0.2] dark:grayscale"
+          className="object-contain p-10"
         />
       </div>
       <div className="flex flex-col gap-4 p-6 md:p-10">
