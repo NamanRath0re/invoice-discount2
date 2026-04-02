@@ -881,7 +881,9 @@ const API_HEADERS = {
   "X-Tenant-Code": "demo",
   "Accept": "application/json",
 }
-const BASE        = process.env.NEXT_PUBLIC_API_URL
+// const BASE        = process.env.NEXT_PUBLIC_API_URL
+const BASE = "https://192.168.6.6/2013/api/v1"
+
 const RESEND_SECS = 30
 
 type OtpState = "idle" | "sent"
