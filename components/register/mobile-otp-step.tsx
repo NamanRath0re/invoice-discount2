@@ -881,7 +881,7 @@ const API_HEADERS = {
   "X-Tenant-Code": "demo",
   "Accept": "application/json",
 }
-const BASE        = "https://192.168.6.6/2013/api/v1"
+const BASE        = process.env.NEXT_PUBLIC_API_URL
 const RESEND_SECS = 30
 
 type OtpState = "idle" | "sent"
@@ -931,6 +931,7 @@ export function MobileOtpStep({ userType, onComplete, onBack }: MobileOtpStepPro
         body: JSON.stringify({ mobile }),
       })
       const data = await res.json()
+      console.log("send otp res", data);
       if (!data.success) throw new Error(data.message ?? "Failed to send OTP")
       setOtpState("sent"); setOtp(""); setOtpError(""); startTimer()
     } catch (e) {

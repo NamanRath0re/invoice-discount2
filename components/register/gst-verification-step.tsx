@@ -222,7 +222,7 @@ const API_HEADERS = {
   "X-Tenant-Code": "demo",
   "Accept":        "application/json",
 }
-const BASE      = "https://192.168.6.6/2013/api/v1"
+const BASE      = "http://192.168.6.6/2013/api/v1"
 const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
 
 interface GstData {
