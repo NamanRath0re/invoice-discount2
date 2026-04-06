@@ -6,7 +6,7 @@ import { canAccessRoute, ALWAYS_ALLOWED } from "@/lib/route-permissions"
 const AUTH_PAGES = ["/login", "/register"]
 
 // Routes accessible without any auth at all
-const PUBLIC_ROUTES = ["/", "/forgot-password"]
+const PUBLIC_ROUTES = ["/", "/forgot-password", "/settings"]
 
 export default auth((req) => {
   const { pathname } = req.nextUrl

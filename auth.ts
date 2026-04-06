@@ -45,9 +45,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       async authorize(credentials): Promise<User | null> {
         try {
-          // process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0" // Disable TLS verification for local development  
+          process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0" // Disable TLS verification for local development  
           // const res = await fetch(`${process.env.API_BASE_URL}/auth/login`, {
-          const res = await fetch(`https://192.168.6.6/2013/api/v1/auth/login`, {
+          const res = await fetch(`https://192.168.6.6/www8/2013/api/v1/auth/login`, {
             method:  "POST",
              headers: {
               "Content-Type": "application/json",
@@ -60,19 +60,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               password:    credentials.password,
             }),
           })
-
-          // const body = (await res.json()) as ApiLoginResponse
           
           const text = await res.text();
 
-          // console.log("STATUS:", res.status);
-          // console.log("RAW RESPONSE:", text);
-          // if (!res.ok) {
-          //   console.error("Request blocked by backend");
-          //   return null;
-          // }
-
           const body = JSON.parse(text) as ApiLoginResponse;
+          console.log("Login API response:", body)
 
           if (!body.success || !body.data) return null
 

@@ -2838,12 +2838,12 @@ const API_HEADERS = {
   "X-Tenant-Code": "demo",
   "Accept":        "application/json",
 }
-const BASE = "https://192.168.6.6/2013/api/v1"
+const BASE = "https://192.168.6.6/www8/2013/api/v1"
 
 // ─── Shapes ───────────────────────────────────────────────────────────────────
 
 interface FieldOption    { key?: string; label: string; value: string }
-interface FieldCondition { depends_on: string; operator: "equals" | "not_equals"; value: string }
+interface FieldCondition { depends_on: string; operator: "equals" | "not_equals"; value: string } 
 interface FieldUi        { visible: boolean; editable: boolean }
 interface FieldValidation { regex?: string; max_length?: number; min_length?: number }
 interface FieldDataSource {
@@ -3186,7 +3186,7 @@ function FileField({ field, submissionId, customerId, onUploadComplete, disabled
       const data = await res.json()
       if (!data.success) throw new Error(data.message ?? "Upload failed")
       // Store the returned file reference (url, path, or id)
-      const fileRef = data.data?.url ?? data.data?.file_url ?? data.data?.file_id ?? f.name
+      const fileRef = data.data?.document?.url ?? data.data?.file_url ?? data.data?.file_id ?? f.name
       onUploadComplete(field.key, String(fileRef))
       setUploaded(true)
     } catch (e) {
