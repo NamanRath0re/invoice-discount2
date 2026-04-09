@@ -97,6 +97,6 @@ export function canAccessRoute(pathname: string, menu: ApiMenuItem[]): boolean {
   return false
 }
 
-// Routes that are always accessible regardless of menu/role
+// Routes that are always accessible regardless of menu/role  
 export const PUBLIC_ROUTES  = ["/", "/login", "/register", "/forgot-password"]
-export const ALWAYS_ALLOWED = ["/dashboard", "/profile", "/settings", "/notifications", "/unauthorized"]
+export const ALWAYS_ALLOWED = ["/dashboard", "/profile", "/settings", "/form-builder", "/unauthorized"]

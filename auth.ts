@@ -47,7 +47,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0" // Disable TLS verification for local development  
           // const res = await fetch(`${process.env.API_BASE_URL}/auth/login`, {
-          const res = await fetch(`https://192.168.6.6/www8/2013/api/v1/auth/login`, {
+          const res = await fetch(`https://192.168.6.6/www8/2013-Backend/api/v1/auth/login`, {
             method:  "POST",
              headers: {
               "Content-Type": "application/json",
