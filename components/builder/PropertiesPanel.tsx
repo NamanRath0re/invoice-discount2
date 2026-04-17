@@ -1672,7 +1672,6 @@ interface PropertiesPanelProps {
   apiSources?: APISource[]
   onUpdate: (componentId: string, updates: Partial<ComponentSchema>) => void
   onDelete: (componentId: string) => void
-  onMappingDraftHasErrors?: (hasErrors: boolean) => void
 }
 
 export default function PropertiesPanel({
@@ -1682,7 +1681,6 @@ export default function PropertiesPanel({
   apiSources = [],
   onUpdate,
   onDelete,
-  onMappingDraftHasErrors,
 }: PropertiesPanelProps) {
   const [activeTab, setActiveTab] = useState("basic")
   const [newOptionKey, setNewOptionKey] = useState("")
@@ -1857,12 +1855,13 @@ export default function PropertiesPanel({
   }
 
   // ── Response mapping rows ─────────────────────────────────────────────────
-  // We keep a local draft array so empty/in-progress rows survive while typing.
-  // Rows are persisted to dataSource.response_mapping only when both key+field are set.
+  // Rows are always persisted to dataSource.response_mapping — including
+  // incomplete ones (fieldKey: "") — so the parent can validate them at save
+  // time even if this panel has been unmounted (component deselected).
   const [mappingDraft, setMappingDraft] = useState<
     Array<{ responseKey: string; fieldKey: string }>
   >(() =>
-    Object.entries(dataSource?.value_columns || {}).map(([k, v]) => ({
+    Object.entries((dataSource as any)?.response_mapping || {}).map(([k, v]) => ({
       responseKey: k,
       fieldKey: v as string,
     }))
@@ -1880,29 +1879,16 @@ export default function PropertiesPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [component.id, dataSource?.source_key])
 
-  // Report draft-level errors to parent so handleSave can block when a row has
-  // a responseKey but no fieldKey selected (those rows are intentionally omitted
-  // from response_mapping by persistMapping, so the parent's own check misses them).
-  useEffect(() => {
-    const hasErrors = mappingDraft.some(
-      (row) => row.responseKey.trim() !== "" && !row.fieldKey
-    )
-    onMappingDraftHasErrors?.(hasErrors)
-  }, [mappingDraft, onMappingDraftHasErrors])
-
-  // Clear the error flag when this panel unmounts (component deselected)
-  useEffect(() => {
-    return () => { onMappingDraftHasErrors?.(false) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   const persistMapping = (
     rows: Array<{ responseKey: string; fieldKey: string }>
   ) => {
+    // Persist ALL rows — even incomplete ones (fieldKey: "") — so that
+    // handleSave in ComponentBuilder can detect missing target fields
+    // regardless of whether this panel is currently mounted.
     const newMapping: Record<string, string> = {}
     rows.forEach((row) => {
-      if (row.responseKey.trim() && row.fieldKey) {
-        newMapping[row.responseKey.trim()] = row.fieldKey
+      if (row.responseKey.trim()) {
+        newMapping[row.responseKey.trim()] = row.fieldKey // may be ""
       }
     })
     updateDataSource({ response_mapping: newMapping })
@@ -1921,9 +1907,9 @@ export default function PropertiesPanel({
   }
 
   const addMappingRow = () => {
-    // Add a blank row — no key pre-filled
-    setMappingDraft((prev) => [...prev, { responseKey: "", fieldKey: "" }])
-    // Don't persist yet — nothing to save until user fills it
+    const updated = [...mappingDraft, { responseKey: "", fieldKey: "" }]
+    setMappingDraft(updated)
+    persistMapping(updated)
   }
 
   const removeMappingRow = (index: number) => {

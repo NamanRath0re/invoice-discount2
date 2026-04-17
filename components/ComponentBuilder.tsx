@@ -802,13 +802,21 @@ function buildUpdatePayload(
 
     if (c.dataSource) {
       const ds = c.dataSource;
+      // Strip incomplete rows (empty fieldKey) before sending to the server.
+      // We store them in response_mapping for validation, but the API must only
+      // receive fully-mapped entries.
+      const cleanMapping = ds.response_mapping
+        ? Object.fromEntries(
+            Object.entries(ds.response_mapping).filter(([k, v]) => k.trim() && v)
+          )
+        : undefined;
       field.data_source = {
         ...(ds.type       ? { type: ds.type }             : {}),
         ...(ds.method     ? { method: ds.method }         : {}),
         ...(ds.endpoint   ? { endpoint: ds.endpoint }     : {}),
         ...(ds.source_key ? { source_key: ds.source_key } : {}),
         trigger: ds.trigger || 'onChange',
-        ...(ds.response_mapping ? { response_mapping: ds.response_mapping } : {}),
+        ...(cleanMapping && Object.keys(cleanMapping).length > 0 ? { response_mapping: cleanMapping } : {}),
       };
     }
 
@@ -836,8 +844,6 @@ interface ComponentBuilderProps {
 export default function EnhancedComponentBuilder({ formId, stepKey, stepName, onBack }: ComponentBuilderProps) {
   const [selectedDataType, setSelectedDataType] = useState<string | null>(null);
   const [fieldSearch, setFieldSearch] = useState<string>('');
-  // Track draft mapping errors reported by PropertiesPanel
-  const [mappingDraftErrors, setMappingDraftErrors] = useState<boolean>(false);
 
   const { dataTypes, loading: dtLoading, error: dtError } = useDataTypes();
   const { fields: fieldKeys, loading: fkLoading, error: fkError } = useFieldKeys(selectedDataType);
@@ -933,17 +939,17 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
       toast.error('Missing formId or stepKey – cannot save.');
       return;
     }
-    // Check 1: persisted mapping rows where key exists but target is empty
+    // All mapping rows (including incomplete ones with empty fieldKey) are always
+    // persisted to response_mapping, so this single check catches every case —
+    // even after the user deselects the component or switches away from the panel.
     const incompleteMappings = schema.components.some((c: any) => {
       const mapping = c.dataSource?.response_mapping;
       if (!mapping) return false;
       return Object.entries(mapping).some(([k, v]) => !k.trim() || !v);
     });
+    console.log("incompleteMappings", schema.components);
 
-    // Check 2: draft rows currently shown in PropertiesPanel that have a
-    // responseKey filled but no fieldKey selected — these are intentionally
-    // excluded from response_mapping by persistMapping, so check 1 misses them.
-    if (incompleteMappings || mappingDraftErrors) {
+    if (incompleteMappings) {
       toast.error('Please set a Target Field for every Response Mapping row before saving.');
       return;
     }
@@ -1287,7 +1293,6 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
                     apiSources={apiSources}
                     onUpdate={handleUpdateComponent}
                     onDelete={handleDeleteComponent}
-                    onMappingDraftHasErrors={setMappingDraftErrors}
                   />
                 ) : selectedApi ? (
                   <div className="text-center py-8 text-muted-foreground">
