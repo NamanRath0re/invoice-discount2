@@ -34,18 +34,17 @@ export async function addFormStep(payload: {
 }
 
 export async function getDataTypes(): Promise<string[]> {
-  const res = await fetch(`http://192.168.6.6/www8/2013/api/v1/kyc/getDataTypes`, {
+  const res = await fetch(`${KYC_API}/getDataTypes`, {
     method: "POST",
     headers: HEADERS,
   });
   const json = await res.json();
-  console.log("Fetching data types...", json);
   if (!json.success) throw new Error("Failed to fetch data types");
   return json.data.data_types as string[];
 }
 
 export async function getFieldKeys(data_type: string): Promise<FieldKey[]> {
-  const res = await fetch(`http://192.168.6.6/www8/2013/api/v1/kyc/getFieldKey`, {
+  const res = await fetch(`${KYC_API}/getFieldKey`, {
     method: "POST",
     headers: HEADERS,
     body: JSON.stringify({ data_type }),

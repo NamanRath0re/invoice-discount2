@@ -75,7 +75,7 @@ export function AddStepModal({ open, formId, existingSteps, onClose, onSuccess }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/5 backdrop-blur-sm p-4"
       onClick={e => e.target === e.currentTarget && handleClose()}
     >
       <div className="w-full max-w-md rounded-xl bg-card ring-1 ring-foreground/10 shadow-xl">

@@ -13,8 +13,6 @@
     --popover-foreground: oklch(0.145 0 0);
     --primary: #1866A9;
     --primary-foreground: #ffffff;
-    /* --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0); */
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
@@ -34,10 +32,8 @@
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: #1866A9;
-    /* --sidebar-primary: oklch(0.205 0 0); */
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.97 0 0);
-    /* --sidebar-accent-foregrounrgb(244, 9, 9) 0); */
     --sidebar-accent-foreground: #FF0B0A;
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
@@ -52,8 +48,6 @@
     --popover-foreground: oklch(0.985 0 0);
     --primary: #1866A9;
     --primary-foreground: #ffffff;
-    /* --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0); */
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
@@ -69,10 +63,14 @@
     --chart-3: oklch(0.546 0.245 262.881);
     --chart-4: oklch(0.488 0.243 264.376);
     --chart-5: oklch(0.424 0.199 265.638);
-    --sidebar: oklch(0.205 0 0);
+    /* ── Sidebar: use the same base as --background so the full sidebar
+       column (including the area above the fixed panel behind the navbar)
+       is one uniform colour. The fixed sidebar panel itself renders
+       bg-sidebar, and the placeholder column is bg-transparent —
+       making them match eliminates the two-tone effect. ── */
+    --sidebar: oklch(0.145 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: #1866A9;
-    /* --sidebar-primary: oklch(0.488 0.243 264.376); */
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);

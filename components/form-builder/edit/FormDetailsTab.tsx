@@ -75,7 +75,7 @@ export function FormDetailsTab({ formId, data, loading, reload }: Props) {
   if (loading) return <FormDetailsSkeleton />;
 
   return (
-    <div className="mt-6 mx-auto max-w-2xl space-y-5">
+    <div className="mt-6 mx-auto space-y-5">
       {/* Read-only meta chips */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <MetaChip label="Form Code" value={data?.form_code} mono />

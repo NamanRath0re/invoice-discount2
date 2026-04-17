@@ -135,7 +135,7 @@ export default function FormEditPage({ params }: Props) {
         onBack={() => {
           // Navigate back to the sections tab, clearing step params
           router.push(
-            `/form-builder/${form_id}?tab=sections`
+            `/form_builder/${form_id}?tab=sections`
           );
         }}
       />
@@ -158,7 +158,7 @@ function FormEditView({ formId }: { formId: string }) {
     <div className="flex flex-col gap-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="icon-sm" onClick={() => router.push(`/form-builder`)}>
+        <Button variant="outline" size="icon-sm" onClick={() => router.push(`/form_builder`)}>
           <ArrowLeft className="size-4" />
         </Button>
         <div className="flex-1 min-w-0">
