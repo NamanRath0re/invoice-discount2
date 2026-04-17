@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { updateForm } from "./api";
 import type { FormDetail, UpdateFormPayload } from "./types";
+import { useRouter } from "next/navigation";
 
 interface Props {
   formId: string;
@@ -30,6 +31,7 @@ export function FormDetailsTab({ formId, data, loading, reload }: Props) {
   });
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<EditableFields>>({});
+  const router = useRouter();
 
   useEffect(() => {
     if (data) {
@@ -64,7 +66,7 @@ export function FormDetailsTab({ formId, data, loading, reload }: Props) {
       console.log({ payload: { form_id: Number(formId), ...fields } });
       await updateForm({ form_id: Number(formId), ...fields });
       toast.success("Form updated successfully");
-      reload();
+      router.push("/form-builder");
     } catch (e: any) {
       toast.error("Failed to update form", { description: e.message });
     } finally {

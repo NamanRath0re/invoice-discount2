@@ -225,7 +225,7 @@ function FormEditView({ formId }: { formId: string }) {
           </TabsContent>
 
           <TabsContent value="preview">
-            <FormPreviewTab />
+            <FormPreviewTab formId={formId} />
           </TabsContent>
         </div>
       </Tabs>

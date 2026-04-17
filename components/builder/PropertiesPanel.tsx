@@ -46,6 +46,7 @@ interface PropertiesPanelProps {
   apiSources?: APISource[]
   onUpdate: (componentId: string, updates: Partial<ComponentSchema>) => void
   onDelete: (componentId: string) => void
+  onMappingDraftHasErrors?: (hasErrors: boolean) => void
 }
 
 export default function PropertiesPanel({
@@ -55,6 +56,7 @@ export default function PropertiesPanel({
   apiSources = [],
   onUpdate,
   onDelete,
+  onMappingDraftHasErrors,
 }: PropertiesPanelProps) {
   const [activeTab, setActiveTab] = useState("basic")
   const [newOptionKey, setNewOptionKey] = useState("")
@@ -242,19 +244,31 @@ export default function PropertiesPanel({
 
   // Sync draft when the selected component changes
   useEffect(() => {
-    let draft = Object.entries(
+    const draft = Object.entries(
       (component as any).dataSource?.response_mapping || {}
     ).map(([k, v]) => ({
       responseKey: k,
       fieldKey: v as string,
     }))
-
-    console.log(dataSource)
-        console.log(draft)
-
     setMappingDraft(draft)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [component.id, dataSource?.source_key])
+
+  // Report draft-level errors to parent so handleSave can block when a row has
+  // a responseKey but no fieldKey selected (those rows are intentionally omitted
+  // from response_mapping by persistMapping, so the parent's own check misses them).
+  useEffect(() => {
+    const hasErrors = mappingDraft.some(
+      (row) => row.responseKey.trim() !== "" && !row.fieldKey
+    )
+    onMappingDraftHasErrors?.(hasErrors)
+  }, [mappingDraft, onMappingDraftHasErrors])
+
+  // Clear the error flag when this panel unmounts (component deselected)
+  useEffect(() => {
+    return () => { onMappingDraftHasErrors?.(false) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const persistMapping = (
     rows: Array<{ responseKey: string; fieldKey: string }>
@@ -1246,33 +1260,6 @@ export default function PropertiesPanel({
           </div>
         </TabsContent>
 
-        {/* ─────────────────── RULES TAB ─────────────────────────────── */}
-        {/* <TabsContent value="rules" className="space-y-4 pt-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Visibility Rules</CardTitle>
-            </CardHeader>
-            <CardContent>{renderRuleConfig('visibility', 'Show this field when…')}</CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Enable / Disable Rules</CardTitle>
-            </CardHeader>
-            <CardContent>{renderRuleConfig('enabled', 'Enable this field when…')}</CardContent>
-          </Card>
-        </TabsContent> */}
-
-        {/* ─────────────────── ACTIONS TAB ───────────────────────────── */}
-        {/* <TabsContent value="actions" className="pt-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Component Actions</CardTitle>
-            </CardHeader>
-            <CardContent>{renderActionsConfig()}</CardContent>
-          </Card>
-        </TabsContent> */}
-
         {/* ─────────────────── ADVANCED TAB ──────────────────────────── */}
         <TabsContent value="advanced" className="space-y-4 pt-3">
           {/* Validation summary */}
@@ -1510,53 +1497,6 @@ export default function PropertiesPanel({
                           </span>
                           <span className="w-6" />
                         </div>
-                        {/* {mappingEntries.map((row, index) => (
-                          <div
-                            key={index}
-                            className="grid grid-cols-[1fr_1fr_auto] items-center gap-2"
-                          >
-                            <Input
-                              className="h-8 font-mono text-xs"
-                              value={row.responseKey}
-                              onChange={(e) =>
-                                updateMappingRow(
-                                  index,
-                                  e.target.value,
-                                  row.fieldKey
-                                )
-                              }
-                              placeholder="e.g. city"
-                            />
-                            <Select
-                              value={row.fieldKey || ""}
-                              onValueChange={(value) =>
-                                updateMappingRow(index, row.responseKey, value)
-                              }
-                            >
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue placeholder="Select field" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {components.map((comp) => (
-                                  <SelectItem key={comp.id} value={comp.key}>
-                                    {comp.label}
-                                    <span className="ml-1 text-[10px] text-gray-400">
-                                      ({comp.key})
-                                    </span>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 shrink-0 p-0"
-                              onClick={() => removeMappingRow(index)}
-                            >
-                              <X className="h-3.5 w-3.5 text-red-500" />
-                            </Button>
-                          </div>
-                        ))} */}
                         {mappingEntries.map((row, index) => {
                           const hasError = row.responseKey.trim() !== '' && !row.fieldKey;
                           return (

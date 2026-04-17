@@ -1,4 +1,4 @@
-export type ComponentType = 'input' | 'textarea' | 'select' | 'radio' | 'button' | 'label' | 'switch';
+export type ComponentType = 'input' | 'textarea' | 'select' | 'radio' | 'button' | 'label' | 'switch' | 'file' | 'date' | 'custom';
 
 export interface FormSchema {
   id: string;

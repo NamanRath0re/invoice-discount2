@@ -25,19 +25,18 @@ export default function FormComponentRenderer({
   onValueChange,
   onButtonClick
 }: FormComponentRendererProps) {
-  // Sort components by some order property if available
-  const sortedComponents = [...schema.components].sort((a, b) => 
+  const sortedComponents = [...schema.components].sort((a, b) =>
     (a.ui.gridColumn || 12) - (b.ui.gridColumn || 12)
   );
-  
+
   return (
     <div className="grid grid-cols-12 gap-4">
       {sortedComponents.map((component) => {
         const props = runtime.getComponentProps(component.id);
         if (!props || !props.visible) return null;
-        
+
         const gridStyle = { gridColumn: `span ${props.gridColumn || 12}` };
-        
+
         return (
           <div key={component.id} style={gridStyle} className={cn('space-y-2')}>
             {renderComponent(component, props, onValueChange, onButtonClick)}
@@ -60,7 +59,7 @@ function renderComponent(
     'data-component-id': component.id,
     'data-component-key': component.key,
   };
-  
+
   if (props.loading) {
     return (
       <div className="flex items-center space-x-2">
@@ -69,7 +68,7 @@ function renderComponent(
       </div>
     );
   }
-  
+
   switch (component.type) {
     case 'input':
       return (
@@ -91,14 +90,14 @@ function renderComponent(
             readOnly={props.readonly}
           />
           {props.helpText && (
-            <p className="text-sm text-gray-500">{props.helpText}</p>
+            <p className="text-sm text-muted-foreground">{props.helpText}</p>
           )}
           {props.error && (
-            <p className="text-sm text-red-500">{props.error}</p>
+            <p className="text-sm text-destructive">{props.error}</p>
           )}
         </div>
       );
-      
+
     case 'textarea':
       return (
         <div className="space-y-2">
@@ -117,11 +116,14 @@ function renderComponent(
             readOnly={props.readonly}
           />
           {props.helpText && (
-            <p className="text-sm text-gray-500">{props.helpText}</p>
+            <p className="text-sm text-muted-foreground">{props.helpText}</p>
+          )}
+          {props.error && (
+            <p className="text-sm text-destructive">{props.error}</p>
           )}
         </div>
       );
-      
+
     case 'select':
       return (
         <div className="space-y-2">
@@ -150,11 +152,14 @@ function renderComponent(
             </SelectContent>
           </Select>
           {props.helpText && (
-            <p className="text-sm text-gray-500">{props.helpText}</p>
+            <p className="text-sm text-muted-foreground">{props.helpText}</p>
+          )}
+          {props.error && (
+            <p className="text-sm text-destructive">{props.error}</p>
           )}
         </div>
       );
-      
+
     case 'radio':
       return (
         <div className="space-y-2">
@@ -172,21 +177,21 @@ function renderComponent(
               const optionLabel = typeof option === 'string' ? option : (option.label || option.key);
               return (
                 <div key={index} className="flex items-center space-x-2">
-                  <RadioGroupItem
-                    value={optionKey}
-                    id={`${component.id}-${index}`}
-                  />
+                  <RadioGroupItem value={optionKey} id={`${component.id}-${index}`} />
                   <Label htmlFor={`${component.id}-${index}`}>{optionLabel}</Label>
                 </div>
               );
             })}
           </RadioGroup>
           {props.helpText && (
-            <p className="text-sm text-gray-500">{props.helpText}</p>
+            <p className="text-sm text-muted-foreground">{props.helpText}</p>
+          )}
+          {props.error && (
+            <p className="text-sm text-destructive">{props.error}</p>
           )}
         </div>
       );
-      
+
     case 'button':
       return (
         <Button
@@ -199,7 +204,7 @@ function renderComponent(
           {props.label}
         </Button>
       );
-      
+
     case 'switch':
       return (
         <div className="flex items-center space-x-2">
@@ -214,17 +219,68 @@ function renderComponent(
           </Label>
         </div>
       );
-      
+
     case 'label':
       return (
         <div className="space-y-2">
           <Label className="text-base font-medium">{props.label}</Label>
           {props.helpText && (
-            <p className="text-sm text-gray-500">{props.helpText}</p>
+            <p className="text-sm text-muted-foreground">{props.helpText}</p>
           )}
         </div>
       );
-      
+
+    case 'date':
+      return (
+        <div className="space-y-2">
+          <Label htmlFor={component.id}>
+            {props.label}
+            {props.required && <span className="text-red-500 ml-1">*</span>}
+          </Label>
+          <Input
+            {...commonProps}
+            type="date"
+            value={props.value || ''}
+            onChange={(e) => onValueChange(component.key, e.target.value)}
+            required={props.required}
+            readOnly={props.readonly}
+          />
+          {props.helpText && (
+            <p className="text-sm text-muted-foreground">{props.helpText}</p>
+          )}
+          {props.error && (
+            <p className="text-sm text-destructive">{props.error}</p>
+          )}
+        </div>
+      );
+
+    case 'file':
+      return (
+        <div className="space-y-2">
+          <Label htmlFor={component.id}>
+            {props.label}
+            {props.required && <span className="text-red-500 ml-1">*</span>}
+          </Label>
+          <Input
+            {...commonProps}
+            type="file"
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null;
+              onValueChange(component.key, file);
+            }}
+            required={props.required}
+            disabled={props.disabled || props.readonly}
+            className="cursor-pointer file:mr-3 file:rounded file:border-0 file:bg-muted file:px-3 file:py-1 file:text-xs file:font-medium"
+          />
+          {props.helpText && (
+            <p className="text-sm text-muted-foreground">{props.helpText}</p>
+          )}
+          {props.error && (
+            <p className="text-sm text-destructive">{props.error}</p>
+          )}
+        </div>
+      );
+
     default:
       return null;
   }
