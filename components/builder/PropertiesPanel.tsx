@@ -229,12 +229,13 @@
 //   }
 
 //   // ── Response mapping rows ─────────────────────────────────────────────────
-//   // We keep a local draft array so empty/in-progress rows survive while typing.
-//   // Rows are persisted to dataSource.response_mapping only when both key+field are set.
+//   // Rows are always persisted to dataSource.response_mapping — including
+//   // incomplete ones (fieldKey: "") — so the parent can validate them at save
+//   // time even if this panel has been unmounted (component deselected).
 //   const [mappingDraft, setMappingDraft] = useState<
 //     Array<{ responseKey: string; fieldKey: string }>
 //   >(() =>
-//     Object.entries(dataSource?.value_columns || {}).map(([k, v]) => ({
+//     Object.entries((dataSource as any)?.response_mapping || {}).map(([k, v]) => ({
 //       responseKey: k,
 //       fieldKey: v as string,
 //     }))
@@ -242,16 +243,12 @@
 
 //   // Sync draft when the selected component changes
 //   useEffect(() => {
-//     let draft = Object.entries(
+//     const draft = Object.entries(
 //       (component as any).dataSource?.response_mapping || {}
 //     ).map(([k, v]) => ({
 //       responseKey: k,
 //       fieldKey: v as string,
 //     }))
-
-//     console.log(dataSource)
-//         console.log(draft)
-
 //     setMappingDraft(draft)
 //     // eslint-disable-next-line react-hooks/exhaustive-deps
 //   }, [component.id, dataSource?.source_key])
@@ -259,10 +256,13 @@
 //   const persistMapping = (
 //     rows: Array<{ responseKey: string; fieldKey: string }>
 //   ) => {
+//     // Persist ALL rows — even incomplete ones (fieldKey: "") — so that
+//     // handleSave in ComponentBuilder can detect missing target fields
+//     // regardless of whether this panel is currently mounted.
 //     const newMapping: Record<string, string> = {}
 //     rows.forEach((row) => {
-//       if (row.responseKey.trim() && row.fieldKey) {
-//         newMapping[row.responseKey.trim()] = row.fieldKey
+//       if (row.responseKey.trim()) {
+//         newMapping[row.responseKey.trim()] = row.fieldKey // may be ""
 //       }
 //     })
 //     updateDataSource({ response_mapping: newMapping })
@@ -281,9 +281,9 @@
 //   }
 
 //   const addMappingRow = () => {
-//     // Add a blank row — no key pre-filled
-//     setMappingDraft((prev) => [...prev, { responseKey: "", fieldKey: "" }])
-//     // Don't persist yet — nothing to save until user fills it
+//     const updated = [...mappingDraft, { responseKey: "", fieldKey: "" }]
+//     setMappingDraft(updated)
+//     persistMapping(updated)
 //   }
 
 //   const removeMappingRow = (index: number) => {
@@ -1334,11 +1334,34 @@
 //                 />
 //               </div>
 
-//               {dataSource && (
+//               {dataSource && (() => {
+//                 const sourceKeyMissing = !dataSource.source_key
+//                 const mappingEmpty = mappingEntries.length === 0
+
+//                 return (
 //                 <div className="space-y-4 rounded-lg border bg-gray-50 p-3">
+//                   {/* Validation banner */}
+//                   {(sourceKeyMissing || mappingEmpty) && (
+//                     <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 space-y-1">
+//                       <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+//                         <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+//                         Required configuration missing
+//                       </p>
+//                       {sourceKeyMissing && (
+//                         <p className="text-xs text-destructive/80 pl-5">• Select a source API</p>
+//                       )}
+//                       {mappingEmpty && (
+//                         <p className="text-xs text-destructive/80 pl-5">• Response mapping cannot be empty</p>
+//                       )}
+//                     </div>
+//                   )}
+
 //                   {/* Source selector */}
 //                   <div className="space-y-1.5">
-//                     <Label className="text-xs">Select Source</Label>
+//                     <Label className="text-xs">
+//                       Select Source
+//                       <span className="ml-1 text-destructive">*</span>
+//                     </Label>
 //                     <Select
 //                       value={dataSource.source_key || ""}
 //                       onValueChange={(sourceKey) => {
@@ -1363,7 +1386,7 @@
 //                         })
 //                       }}
 //                     >
-//                       <SelectTrigger>
+//                       <SelectTrigger className={sourceKeyMissing ? "border-destructive ring-1 ring-destructive" : ""}>
 //                         <SelectValue placeholder="Choose a data source…" />
 //                       </SelectTrigger>
 //                       <SelectContent>
@@ -1450,8 +1473,9 @@
 //                   <div className="space-y-2">
 //                     <div className="flex items-center justify-between">
 //                       <div>
-//                         <Label className="text-xs font-semibold">
+//                         <Label className={`text-xs font-semibold ${mappingEmpty ? "text-destructive" : ""}`}>
 //                           Response Mapping
+//                           <span className="ml-1 text-destructive">*</span>
 //                         </Label>
 //                         <p className="text-xs text-gray-400">
 //                           API response key → field to fill
@@ -1468,9 +1492,15 @@
 //                     </div>
 
 //                     {mappingEntries.length === 0 ? (
-//                       <p className="rounded border bg-white py-2 text-center text-xs text-gray-400">
-//                         No mappings — click Add to create one
-//                       </p>
+//                       <div className="rounded border border-destructive/40 bg-destructive/5 py-3 text-center">
+//                         <AlertCircle className="mx-auto mb-1 h-4 w-4 text-destructive/60" />
+//                         <p className="text-xs text-destructive">
+//                           At least one mapping is required
+//                         </p>
+//                         <p className="text-[10px] text-destructive/70 mt-0.5">
+//                           Click "Add" above to create a mapping
+//                         </p>
+//                       </div>
 //                     ) : (
 //                       <div className="space-y-2">
 //                         {/* Header */}
@@ -1561,7 +1591,8 @@
 //                       )
 //                     })()}
 //                 </div>
-//               )}
+//               )
+//               })()}
 //             </CardContent>
 //           </Card>
 
@@ -1623,6 +1654,9 @@
 //     </div>
 //   )
 // }
+
+
+
 
 "use client"
 
@@ -2960,11 +2994,15 @@ export default function PropertiesPanel({
                 />
               </div>
 
-              {dataSource && (
+              {dataSource && (() => {
+                const sourceKeyMissing = !dataSource.source_key
+                const mappingEmpty = mappingEntries.length === 0
+
+                return (
                 <div className="space-y-4 rounded-lg border bg-gray-50 p-3">
                   {/* Source selector */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Select Source</Label>
+                    <Label className="text-xs">Select Source <span className="text-destructive">*</span></Label>
                     <Select
                       value={dataSource.source_key || ""}
                       onValueChange={(sourceKey) => {
@@ -2989,7 +3027,7 @@ export default function PropertiesPanel({
                         })
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className={sourceKeyMissing ? "border-destructive ring-1 ring-destructive" : ""}>
                         <SelectValue placeholder="Choose a data source…" />
                       </SelectTrigger>
                       <SelectContent>
@@ -3013,6 +3051,11 @@ export default function PropertiesPanel({
                         )}
                       </SelectContent>
                     </Select>
+                    {sourceKeyMissing && (
+                      <p className="text-[10px] text-destructive flex items-center gap-1 mt-1">
+                        <AlertCircle className="h-3 w-3" /> Source API is required
+                      </p>
+                    )}
                   </div>
 
                   {/* Endpoint (API type only) */}
@@ -3076,9 +3119,7 @@ export default function PropertiesPanel({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-xs font-semibold">
-                          Response Mapping
-                        </Label>
+                        <Label className="text-xs font-semibold">Response Mapping <span className="text-destructive">*</span></Label>
                         <p className="text-xs text-gray-400">
                           API response key → field to fill
                         </p>
@@ -3094,8 +3135,8 @@ export default function PropertiesPanel({
                     </div>
 
                     {mappingEntries.length === 0 ? (
-                      <p className="rounded border bg-white py-2 text-center text-xs text-gray-400">
-                        No mappings — click Add to create one
+                      <p className="text-[10px] text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3 shrink-0" /> At least one mapping is required
                       </p>
                     ) : (
                       <div className="space-y-2">
@@ -3187,7 +3228,8 @@ export default function PropertiesPanel({
                       )
                     })()}
                 </div>
-              )}
+              )
+              })()}
             </CardContent>
           </Card>
 

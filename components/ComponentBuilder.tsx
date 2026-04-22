@@ -165,13 +165,21 @@
 
 //     if (c.dataSource) {
 //       const ds = c.dataSource;
+//       // Strip incomplete rows (empty fieldKey) before sending to the server.
+//       // We store them in response_mapping for validation, but the API must only
+//       // receive fully-mapped entries.
+//       const cleanMapping = ds.response_mapping
+//         ? Object.fromEntries(
+//             Object.entries(ds.response_mapping).filter(([k, v]) => k.trim() && v)
+//           )
+//         : undefined;
 //       field.data_source = {
 //         ...(ds.type       ? { type: ds.type }             : {}),
 //         ...(ds.method     ? { method: ds.method }         : {}),
 //         ...(ds.endpoint   ? { endpoint: ds.endpoint }     : {}),
 //         ...(ds.source_key ? { source_key: ds.source_key } : {}),
 //         trigger: ds.trigger || 'onChange',
-//         ...(ds.response_mapping ? { response_mapping: ds.response_mapping } : {}),
+//         ...(cleanMapping && Object.keys(cleanMapping).length > 0 ? { response_mapping: cleanMapping } : {}),
 //       };
 //     }
 
@@ -198,6 +206,7 @@
 
 // export default function EnhancedComponentBuilder({ formId, stepKey, stepName, onBack }: ComponentBuilderProps) {
 //   const [selectedDataType, setSelectedDataType] = useState<string | null>(null);
+//   const [fieldSearch, setFieldSearch] = useState<string>('');
 
 //   const { dataTypes, loading: dtLoading, error: dtError } = useDataTypes();
 //   const { fields: fieldKeys, loading: fkLoading, error: fkError } = useFieldKeys(selectedDataType);
@@ -224,7 +233,6 @@
 //     setStepMeta({ hashKey: stepData.hash_key, version: stepData.version });
 //     setSchema((prev) => ({
 //       ...prev,
-//       // name: stepData.rendered_json.step_name || stepKey || prev.name,
 //       name: stepKey || prev.name,
 //       components,
 //     }));
@@ -237,7 +245,6 @@
 //     const newComp = fieldKeyToComponentSchema(item);
 //     setSchema((prev) => ({ ...prev, components: [...prev.components, newComp] }));
 //     setSelectedComponent(newComp);
-//     // setSelectedDataType(null);
 //   };
 
 //   const handleAddApi = () => {
@@ -293,17 +300,60 @@
 //       toast.error('Missing formId or stepKey – cannot save.');
 //       return;
 //     }
-//     const incompleteMappings = schema.components.some((c: any) => {
+
+//     // Build a Set of all component keys currently present in the form
+//     const existingComponentKeys = new Set(schema.components.map((c) => c.key));
+
+//     // Check every component that has a dataSource with a response_mapping.
+//     // For each mapping row:
+//     //   1. The response key must be non-empty (row is not blank)
+//     //   2. The target field value must be non-empty (a target was selected)
+//     //   3. The target field value must actually exist as a component key in the form
+//     //      — this catches the case where the mapping was pre-filled from the API
+//     //        source but the corresponding field was never added to the canvas.
+//     const invalidMappings: Array<{ componentLabel: string; responseKey: string; targetKey: string; missing: boolean }> = [];
+
+//     for (const c of schema.components as any[]) {
 //       const mapping = c.dataSource?.response_mapping;
-//       if (!mapping) return false;
-//       return Object.entries(mapping).some(([k, v]) => !k.trim() || !v);
+//       if (!mapping) continue;
+
+//       for (const [responseKey, targetKey] of Object.entries(mapping)) {
+//         if (!responseKey.trim()) continue; // skip blank rows entirely
+
+//         const target = targetKey as string;
+
+//         if (!target) {
+//           // Target field was not selected at all
+//           invalidMappings.push({ componentLabel: c.label, responseKey, targetKey: target, missing: false });
+//         } else if (!existingComponentKeys.has(target)) {
+//           // Target field key was set (e.g. pre-filled from API source) but the
+//           // field does not exist on the canvas — this is the core bug fix.
+//           invalidMappings.push({ componentLabel: c.label, responseKey, targetKey: target, missing: true });
+//         }
+//       }
+//     }
+
+//     console.log('mapping validation', {
+//       existingKeys: [...existingComponentKeys],
+//       invalidMappings,
+//       allMappings: schema.components.map((c: any) => c.dataSource?.response_mapping),
 //     });
 
-//     if (incompleteMappings) {
-//       toast.error('Please set a Target Field for every Response Mapping row before saving.');
+//     if (invalidMappings.length > 0) {
+//       const details = invalidMappings
+//         .map(({ componentLabel, responseKey, targetKey, missing }) =>
+//           missing
+//             ? `"${componentLabel}" → response key "${responseKey}" maps to field "${targetKey}" which is not added to the form`
+//             : `"${componentLabel}" → response key "${responseKey}" has no target field selected`
+//         )
+//         .join('\n');
+
+//       toast.error(`Fix response mappings before saving`, {
+//         duration: 6000,
+//       });
 //       return;
 //     }
-    
+
 //     setSaveStatus('saving');
 //     try {
 //       const payload = buildUpdatePayload(
@@ -360,7 +410,7 @@
 //       return (
 //         <div className="space-y-2">
 //           <button
-//             onClick={() => setSelectedDataType(null)}
+//             onClick={() => { setSelectedDataType(null); setFieldSearch(''); }}
 //             className="flex items-center gap-1 text-sm text-primary hover:underline"
 //           >
 //             ← Back to types
@@ -368,6 +418,23 @@
 //           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
 //             {selectedDataType} fields
 //           </p>
+//           {/* Search box — shown once fields are loaded */}
+//           {!fkLoading && !fkError && fieldKeys.length > 0 && (
+//             <div className="relative">
+//               <svg
+//                 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
+//                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+//               >
+//                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+//               </svg>
+//               <Input
+//                 value={fieldSearch}
+//                 onChange={(e) => setFieldSearch(e.target.value)}
+//                 placeholder="Search fields…"
+//                 className="h-8 pl-8 text-xs"
+//               />
+//             </div>
+//           )}
 //           {fkLoading ? (
 //             <div className="flex items-center justify-center py-6 text-muted-foreground">
 //               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -381,31 +448,47 @@
 //           ) : fieldKeys.length === 0 ? (
 //             <p className="text-xs text-muted-foreground py-4 text-center">No fields available</p>
 //           ) : (
-//             fieldKeys.map((item) => {
-//               const alreadyAdded = schema.components.some((c) => c.key === item.field_key);
-//               return (
-//                 <Button
-//                   key={item.id}
-//                   variant="outline"
-//                   className="w-full justify-start h-auto py-2 px-3 text-left"
-//                   disabled={alreadyAdded}
-//                   onClick={() => handleAddFromFieldKey(item)}
-//                 >
-//                   <div className="flex flex-col min-w-0 flex-1">
-//                     <span className="text-sm font-medium truncate">{item.field_label}</span>
-//                     <span className="text-xs text-muted-foreground truncate">{item.field_key}</span>
-//                     {item.is_derived === 1 && item.depends_on_field_key && (
-//                       <span className="text-xs text-primary truncate">
-//                         derived from: {item.depends_on_field_key}
-//                       </span>
-//                     )}
-//                   </div>
-//                   {alreadyAdded && (
-//                     <Badge variant="secondary" className="ml-auto text-xs shrink-0">Added</Badge>
-//                   )}
-//                 </Button>
+//             (() => {
+//               const q = fieldSearch.trim().toLowerCase();
+//               const filtered = q
+//                 ? fieldKeys.filter(
+//                     (item) =>
+//                       item.field_label.toLowerCase().includes(q) ||
+//                       item.field_key.toLowerCase().includes(q)
+//                   )
+//                 : fieldKeys;
+//               return filtered.length === 0 ? (
+//                 <p className="text-xs text-muted-foreground py-4 text-center">
+//                   {q ? `No fields matching "${fieldSearch}"` : 'No fields available'}
+//                 </p>
+//               ) : (
+//                 filtered.map((item) => {
+//                   const alreadyAdded = schema.components.some((c) => c.key === item.field_key);
+//                   return (
+//                     <Button
+//                       key={item.id}
+//                       variant="outline"
+//                       className="w-full justify-start h-auto py-2 px-3 text-left"
+//                       disabled={alreadyAdded}
+//                       onClick={() => handleAddFromFieldKey(item)}
+//                     >
+//                       <div className="flex flex-col min-w-0 flex-1">
+//                         <span className="text-sm font-medium truncate">{item.field_label}</span>
+//                         <span className="text-xs text-muted-foreground truncate">{item.field_key}</span>
+//                         {item.is_derived === 1 && item.depends_on_field_key && (
+//                           <span className="text-xs text-primary truncate">
+//                             derived from: {item.depends_on_field_key}
+//                           </span>
+//                         )}
+//                       </div>
+//                       {alreadyAdded && (
+//                         <Badge variant="secondary" className="ml-auto text-xs shrink-0">Added</Badge>
+//                       )}
+//                     </Button>
+//                   );
+//                 })
 //               );
-//             })
+//             })()
 //           )}
 //         </div>
 //       );
@@ -438,11 +521,9 @@
 //   // ── JSX ───────────────────────────────────────────────────────────────────
 
 //   return (
-//     // No min-h-screen / bg wrapper — the protected layout already provides that.
-//     // Use flex-col gap so it slots cleanly into the layout's <div className="flex flex-1 flex-col p-4 pb-14">
 //     <div className="flex flex-col gap-5">
 
-//       {/* ── Page header — matches the form-edit page style ──────────────── */}
+//       {/* ── Page header ──────────────────────────────────────────────────── */}
 //       <div className="flex items-center justify-between gap-3 flex-wrap">
 //         <div className="flex items-center gap-3 min-w-0">
 //           {onBack && (
@@ -500,11 +581,6 @@
 //       )}
 
 //       {/* ── 3-column layout ──────────────────────────────────────────────── */}
-//       {/*
-//         Using a bg-muted/30 background so Card borders (bg-card + border) are
-//         clearly visible against it. Previously bg-gray-50 ≈ card bg which made
-//         borders invisible.
-//       */}
 //       <div className="rounded-xl bg-muted/30 p-3 sm:p-4">
 //         <div className="flex flex-col xl:flex-row gap-4 xl:gap-5 items-start">
 
@@ -556,23 +632,6 @@
 //                       onAddComponent={() => {}}
 //                     />
 //                   </TabsContent>
-//                   {/* <TabsContent value="apis" className="mt-0">
-//                     {selectedApi ? (
-//                       <ApiBuilder
-//                         api={selectedApi}
-//                         components={schema.components}
-//                         onUpdate={handleUpdateApi}
-//                         onDelete={handleDeleteApi}
-//                       />
-//                     ) : (
-//                       <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
-//                         <Globe className="h-10 w-10 mb-3" />
-//                         <p className="font-medium">No API selected</p>
-//                         <p className="text-sm mt-1">Select from the left or create one</p>
-//                         <Button className="mt-4" size="sm" onClick={handleAddApi}>Create New API</Button>
-//                       </div>
-//                     )}
-//                   </TabsContent> */}
 //                   <TabsContent value="preview" className="mt-0">
 //                     <div className="border rounded-lg p-4 bg-card">
 //                       <FormRuntimeComponent
@@ -634,6 +693,10 @@
 //     </div>
 //   );
 // }
+
+
+
+
 
 'use client';
 
@@ -870,7 +933,6 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
     setStepMeta({ hashKey: stepData.hash_key, version: stepData.version });
     setSchema((prev) => ({
       ...prev,
-      // name: stepData.rendered_json.step_name || stepKey || prev.name,
       name: stepKey || prev.name,
       components,
     }));
@@ -883,7 +945,6 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
     const newComp = fieldKeyToComponentSchema(item);
     setSchema((prev) => ({ ...prev, components: [...prev.components, newComp] }));
     setSelectedComponent(newComp);
-    // setSelectedDataType(null);
   };
 
   const handleAddApi = () => {
@@ -939,21 +1000,52 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
       toast.error('Missing formId or stepKey – cannot save.');
       return;
     }
-    // All mapping rows (including incomplete ones with empty fieldKey) are always
-    // persisted to response_mapping, so this single check catches every case —
-    // even after the user deselects the component or switches away from the panel.
-    const incompleteMappings = schema.components.some((c: any) => {
-      const mapping = c.dataSource?.response_mapping;
-      if (!mapping) return false;
-      return Object.entries(mapping).some(([k, v]) => !k.trim() || !v);
-    });
-    console.log("incompleteMappings", schema.components);
 
-    if (incompleteMappings) {
-      toast.error('Please set a Target Field for every Response Mapping row before saving.');
+    // Build a Set of all component keys currently present in the form
+    const existingComponentKeys = new Set(schema.components.map((c) => c.key));
+
+    // Validate every component that has a dataSource enabled:
+    //   1. source_key must be selected
+    //   2. response_mapping must have at least one row
+    //   3. Every non-blank row must have both a response key and a target field
+    //   4. Target field must exist on the canvas
+    const dataSourceErrors: string[] = [];
+
+    for (const c of schema.components as any[]) {
+      const ds = (c as any).dataSource;
+      if (!ds) continue;
+
+      if (!ds.source_key) {
+        dataSourceErrors.push(`"${c.label}": no source API selected`);
+        continue;
+      }
+
+      const mapping: Record<string, string> = ds.response_mapping || {};
+      const rows = Object.entries(mapping);
+
+      if (rows.length === 0) {
+        dataSourceErrors.push(`"${c.label}": response mapping cannot be empty`);
+        continue;
+      }
+
+      for (const [responseKey, targetKey] of rows) {
+        if (!responseKey.trim()) continue;
+        if (!targetKey) {
+          dataSourceErrors.push(`"${c.label}": response key "${responseKey}" has no target field`);
+        } else if (!existingComponentKeys.has(targetKey)) {
+          dataSourceErrors.push(`"${c.label}": target field "${targetKey}" is not on the canvas`);
+        }
+      }
+    }
+
+    if (dataSourceErrors.length > 0) {
+      toast.error(
+        `Fix data source config before saving:\n${dataSourceErrors.join('\n')}`,
+        { duration: 6000 }
+      );
       return;
     }
-    
+
     setSaveStatus('saving');
     try {
       const payload = buildUpdatePayload(
@@ -1121,11 +1213,9 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
   // ── JSX ───────────────────────────────────────────────────────────────────
 
   return (
-    // No min-h-screen / bg wrapper — the protected layout already provides that.
-    // Use flex-col gap so it slots cleanly into the layout's <div className="flex flex-1 flex-col p-4 pb-14">
     <div className="flex flex-col gap-5">
 
-      {/* ── Page header — matches the form-edit page style ──────────────── */}
+      {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           {onBack && (
@@ -1183,11 +1273,6 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
       )}
 
       {/* ── 3-column layout ──────────────────────────────────────────────── */}
-      {/*
-        Using a bg-muted/30 background so Card borders (bg-card + border) are
-        clearly visible against it. Previously bg-gray-50 ≈ card bg which made
-        borders invisible.
-      */}
       <div className="rounded-xl bg-muted/30 p-3 sm:p-4">
         <div className="flex flex-col xl:flex-row gap-4 xl:gap-5 items-start">
 
@@ -1239,23 +1324,6 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
                       onAddComponent={() => {}}
                     />
                   </TabsContent>
-                  {/* <TabsContent value="apis" className="mt-0">
-                    {selectedApi ? (
-                      <ApiBuilder
-                        api={selectedApi}
-                        components={schema.components}
-                        onUpdate={handleUpdateApi}
-                        onDelete={handleDeleteApi}
-                      />
-                    ) : (
-                      <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
-                        <Globe className="h-10 w-10 mb-3" />
-                        <p className="font-medium">No API selected</p>
-                        <p className="text-sm mt-1">Select from the left or create one</p>
-                        <Button className="mt-4" size="sm" onClick={handleAddApi}>Create New API</Button>
-                      </div>
-                    )}
-                  </TabsContent> */}
                   <TabsContent value="preview" className="mt-0">
                     <div className="border rounded-lg p-4 bg-card">
                       <FormRuntimeComponent
