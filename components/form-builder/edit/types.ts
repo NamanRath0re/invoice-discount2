@@ -20,6 +20,24 @@ export interface FormStep {
   step_order: number;
   is_mandatory: number;
   is_skippable: number;
+  sub_sections?: SubSection[];
+}
+
+export interface SubSection {
+  sub_section_key: string;
+  sub_section_name: string;
+  sub_section_order: number;
+  parent_step_key: string;
+  repeatable: boolean;
+}
+
+export interface AddSubSectionPayload {
+  form_id: number;
+  parent_step_key: string;
+  sub_section_key: string;
+  sub_section_name: string;
+  sub_section_order: number;
+  repeatable: boolean;
 }
 
 export interface UpdateFormPayload {

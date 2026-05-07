@@ -185,7 +185,7 @@ function MetaChip({
 
 function FormDetailsSkeleton() {
   return (
-    <div className="mt-6 mx-auto max-w-2xl space-y-5">
+    <div className="mt-6 mx-auto space-y-5">
       <div className="grid grid-cols-3 gap-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-14 rounded-lg" />
