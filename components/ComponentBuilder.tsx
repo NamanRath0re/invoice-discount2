@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -230,7 +229,7 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
 
   useEffect(() => {
     if (!stepData) return;
-    const components = (stepData.rendered_json ?? []).map(stepFieldToComponentSchema);
+    const components = (stepData.rendered_json?.fields ?? []).map(stepFieldToComponentSchema);
     setStepMeta({ hashKey: stepData.hash_key, version: stepData.version });
     setSchema((prev) => ({
       ...prev,
@@ -706,7 +705,7 @@ console .log('actions',actions);
                   </div>
                 )}
               </CardContent>
-            </Card>
+            </Card>   
           </div>
 
         </div>

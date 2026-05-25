@@ -74,12 +74,9 @@ export interface StepField {
 }
 
 export interface FormStepData {
-  // rendered_json: {
-  //   fields: StepField[];
-  //   step_key: string;
-  //   step_name?: string;
-  // };
-  rendered_json: StepField[]; 
+  rendered_json: {
+    fields: StepField[];
+  };
   hash_key: string;
   version: number;
 }
