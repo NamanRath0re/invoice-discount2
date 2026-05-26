@@ -70,7 +70,7 @@ function stepFieldToComponentSchema(field: StepField): ComponentSchema {
     type:  mapDataTypeToComponentType(field.type),
     label: field.label,
     ui: {
-      gridColumn:  12,
+      gridColumn: field.grid_width ?? 12,
       required:    field.required ?? false,
       disabled:    field.ui?.editable === false,
       placeholder: field.placeholder || '',
@@ -247,20 +247,6 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
     setSelectedComponent(newComp);
   };
 
-  const handleAddApi = () => {
-    const newApi: ApiSchema = {
-      id:      `api-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name:    'New API Endpoint',
-      method:  'GET',
-      url:     'https://api.example.com/data',
-      headers: { 'Content-Type': 'application/json' },
-      cache:   { enabled: false },
-    };
-    setSchema((prev) => ({ ...prev, apis: [...(prev.apis || []), newApi] }));
-    setSelectedApi(newApi);
-    setActiveTab('apis');
-  };
-
   const handleUpdateComponent = (componentId: string, updates: Partial<ComponentSchema>) => {
     setSchema((prev) => ({
       ...prev,
@@ -271,24 +257,9 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
     }
   };
 
-  const handleUpdateApi = (apiId: string, updates: Partial<ApiSchema>) => {
-    setSchema((prev) => ({
-      ...prev,
-      apis: (prev.apis || []).map((a) => a.id === apiId ? { ...a, ...updates } : a),
-    }));
-    if (selectedApi?.id === apiId) {
-      setSelectedApi((prev) => prev ? { ...prev, ...updates } : null);
-    }
-  };
-
   const handleDeleteComponent = (componentId: string) => {
     setSchema((prev) => ({ ...prev, components: prev.components.filter((c) => c.id !== componentId) }));
     if (selectedComponent?.id === componentId) setSelectedComponent(null);
-  };
-
-  const handleDeleteApi = (apiId: string) => {
-    setSchema((prev) => ({ ...prev, apis: (prev.apis || []).filter((a) => a.id !== apiId) }));
-    if (selectedApi?.id === apiId) setSelectedApi(null);
   };
 
   const handleReorderComponents = (reordered: ComponentSchema[]) => {

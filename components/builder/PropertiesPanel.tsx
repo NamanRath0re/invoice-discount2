@@ -1536,102 +1536,12 @@ export default function PropertiesPanel({
                       </div>
                     )}
                   </div>
-
-                  {/* Source meta info */}
-                  {/* {dataSource.source_key &&
-                    (() => {
-                      const src = apiSources.find(
-                        (s) => s.source_key === dataSource.source_key
-                      )
-                      if (!src) return null
-                      return (
-                        <div className="space-y-1 rounded border bg-background p-2 text-xs text-muted-foreground">
-                          {src.table_name && (
-                            <div>
-                              <span className="font-medium">Table:</span>{" "}
-                              {src.table_name}
-                            </div>
-                          )}
-                          {src.key_column && (
-                            <div>
-                              <span className="font-medium">Key col:</span>{" "}
-                              {src.key_column}
-                            </div>
-                          )}
-                          {src.input_param && (
-                            <div>
-                              <span className="font-medium">Input param:</span>{" "}
-                              {src.input_param}
-                            </div>
-                          )}
-                          {src.cache_enabled === 1 && (
-                            <div>
-                              <span className="font-medium">Cache TTL:</span>{" "}
-                              {src.cache_ttl}s
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })()} */}
                 </div>
               )
               })()}
             </CardContent>
           </Card>
 
-          {/* Dependencies */}
-          {/* <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Link className="h-4 w-4" /> Dependencies
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {component.value?.source === 'component' && (
-                  <div className="p-2.5 border rounded text-xs">
-                    <div className="flex items-center gap-2 font-medium">
-                      <RefreshCw className="h-3.5 w-3.5 text-blue-500" /> Default Value
-                      <Badge variant="outline">From Field</Badge>
-                    </div>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      {components.find((c) => c.id === component.value?.componentId)?.label || component.value.componentId}
-                    </p>
-                  </div>
-                )}
-                {component.visibility && component.visibility.conditions.length > 0 && (
-                  <div className="p-2.5 border rounded text-xs">
-                    <div className="flex items-center gap-2 font-medium">
-                      <Eye className="h-3.5 w-3.5 text-purple-500" /> Visibility
-                      <Badge variant="outline">{component.visibility.conditions.length} cond{component.visibility.conditions.length !== 1 ? 's' : ''}</Badge>
-                    </div>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      {component.visibility.conditions.map((c) => components.find((x) => x.key === c.key)?.label || c.key).join(', ')}
-                    </p>
-                  </div>
-                )}
-                {component.enabled && component.enabled.conditions.length > 0 && (
-                  <div className="p-2.5 border rounded text-xs">
-                    <div className="flex items-center gap-2 font-medium">
-                      <Settings className="h-3.5 w-3.5 text-orange-500" /> Enable/Disable
-                      <Badge variant="outline">{component.enabled.conditions.length} cond{component.enabled.conditions.length !== 1 ? 's' : ''}</Badge>
-                    </div>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      {component.enabled.conditions.map((c) => components.find((x) => x.key === c.key)?.label || c.key).join(', ')}
-                    </p>
-                  </div>
-                )}
-                {!component.value?.source &&
-                  (!component.visibility || component.visibility.conditions.length === 0) &&
-                  (!component.enabled   || component.enabled.conditions.length === 0) && (
-                  <div className="text-center py-4 text-muted-foreground text-xs">
-                    <Link className="h-6 w-6 mx-auto mb-1 opacity-40" />
-                    No dependencies — works independently
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card> */}
         </TabsContent>
       </Tabs>
     </div>
