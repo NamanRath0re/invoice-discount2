@@ -70,7 +70,7 @@ function stepFieldToComponentSchema(field: StepField): ComponentSchema {
     type:  mapDataTypeToComponentType(field.type),
     label: field.label,
     ui: {
-      gridColumn: field.grid_width ?? 12,
+      gridColumn:  12,
       required:    field.required ?? false,
       disabled:    field.ui?.editable === false,
       placeholder: field.placeholder || '',
@@ -146,10 +146,12 @@ function buildUpdatePayload(
 
     const formUiVisible  = c.formUi?.visible  ?? true;
     const formUiEditable = c.formUi?.editable ?? true;
-    if (!formUiVisible || !formUiEditable) {
-      field.ui = { visible: formUiVisible, editable: formUiEditable };
-    }
+    // if (!formUiVisible || !formUiEditable) {
+      // field.ui = { visible: formUiVisible, editable: formUiEditable };
+    // }
 
+    field.ui = { visible: formUiVisible, editable: formUiEditable };
+    
     const regex     = c.ui?.pattern   || c.validation?.rules?.find((r: any) => r.type === 'pattern')?.value;
     const maxLength = c.ui?.maxLength  || c.validation?.rules?.find((r: any) => r.type === 'maxLength')?.value;
     if (regex || maxLength) {
@@ -161,6 +163,24 @@ function buildUpdatePayload(
 
     if (c.options?.static?.length) {
       field.options = c.options.static.map((o: any) => ({ label: o.label, value: o.key }));
+    }
+
+    // Serialize visibility actions
+    if ((c as any).actions?.length) {
+      field.actions = (c as any).actions.map((a: any) => {
+        if (a.type === 'conditional') {
+          return {
+            visibility: {
+              type:     'conditional',
+              trigger:  a.trigger  || 'onChange',
+              field:    a.field    || '',
+              operator: a.operator || 'equals',
+              value:    a.value    ?? '',
+            },
+          };
+        }
+        return { visibility: { type: 'always' } };
+      });
     }
 
     if (c.dataSource) {
@@ -189,7 +209,10 @@ function buildUpdatePayload(
   return {
     form_id:       formId,
     step_key:      stepKey,
-    rendered_json: fields,
+    // rendered_json: fields,
+    rendered_json: {
+      fields: fields,
+  },
   };
 }
 
@@ -247,6 +270,20 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
     setSelectedComponent(newComp);
   };
 
+  const handleAddApi = () => {
+    const newApi: ApiSchema = {
+      id:      `api-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name:    'New API Endpoint',
+      method:  'GET',
+      url:     'https://api.example.com/data',
+      headers: { 'Content-Type': 'application/json' },
+      cache:   { enabled: false },
+    };
+    setSchema((prev) => ({ ...prev, apis: [...(prev.apis || []), newApi] }));
+    setSelectedApi(newApi);
+    setActiveTab('apis');
+  };
+
   const handleUpdateComponent = (componentId: string, updates: Partial<ComponentSchema>) => {
     setSchema((prev) => ({
       ...prev,
@@ -257,9 +294,24 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
     }
   };
 
+  const handleUpdateApi = (apiId: string, updates: Partial<ApiSchema>) => {
+    setSchema((prev) => ({
+      ...prev,
+      apis: (prev.apis || []).map((a) => a.id === apiId ? { ...a, ...updates } : a),
+    }));
+    if (selectedApi?.id === apiId) {
+      setSelectedApi((prev) => prev ? { ...prev, ...updates } : null);
+    }
+  };
+
   const handleDeleteComponent = (componentId: string) => {
     setSchema((prev) => ({ ...prev, components: prev.components.filter((c) => c.id !== componentId) }));
     if (selectedComponent?.id === componentId) setSelectedComponent(null);
+  };
+
+  const handleDeleteApi = (apiId: string) => {
+    setSchema((prev) => ({ ...prev, apis: (prev.apis || []).filter((a) => a.id !== apiId) }));
+    if (selectedApi?.id === apiId) setSelectedApi(null);
   };
 
   const handleReorderComponents = (reordered: ComponentSchema[]) => {
@@ -312,32 +364,6 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
     if (dataSourceErrors.length > 0) {
       toast.error(
         `Fix data source config before saving:\n${dataSourceErrors.join('\n')}`,
-        { duration: 6000 }
-      );
-      return;
-    }
-
-    // Validate actions on every component
-    const actionErrors: string[] = [];
-    for (const c of schema.components as any[]) {
-      const actions = c.actions || [];
-console .log('actions',actions);
-      
-      actions.forEach((action: any, i: number) => {
-        const label = `"${c.label}" action ${i + 1}`;
-        if (!action.trigger) actionErrors.push(`${label}: trigger is required`);
-        if (!action.type)    actionErrors.push(`${label}: action type is required`);
-        if (
-          ['setValue', 'clearValue', 'toggleVisibility'].includes(action.type) &&
-          (!action.target || action.target.length === 0)
-        ) actionErrors.push(`${label}: target component is required`);
-        if (action.type === 'setValue' && !action.payload?.value?.toString().trim())
-          actionErrors.push(`${label}: value to set is required`);
-      });
-    }
-    if (actionErrors.length > 0) {
-      toast.error(
-        `Fix actions before saving:\n${actionErrors.join('\n')}`,
         { duration: 6000 }
       );
       return;
@@ -676,7 +702,7 @@ console .log('actions',actions);
                   </div>
                 )}
               </CardContent>
-            </Card>   
+            </Card>
           </div>
 
         </div>

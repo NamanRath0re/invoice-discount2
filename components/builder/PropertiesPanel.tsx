@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import {
   Eye,
+  EyeOff,
   Link,
   Zap,
   RefreshCw,
@@ -147,26 +148,26 @@ export default function PropertiesPanel({
 
   // ── Action helpers ───────────────────────────────────────────────────────
   const handleAddAction = () => {
-    const currentActions = component.actions || []
+    const currentActions = (component as any).actions || []
     onUpdate(component.id, {
       actions: [
         ...currentActions,
-        { trigger: "onClick" as const, type: "setValue" as const, payload: {} },
+        { type: "always" },
       ],
-    })
+    } as any)
   }
 
   const handleUpdateAction = (index: number, updates: any) => {
-    const currentActions = component.actions || []
+    const currentActions = (component as any).actions || []
     const newActions = [...currentActions]
     newActions[index] = { ...newActions[index], ...updates }
-    onUpdate(component.id, { actions: newActions })
+    onUpdate(component.id, { actions: newActions } as any)
   }
 
   const handleRemoveAction = (index: number) => {
     onUpdate(component.id, {
-      actions: (component.actions || []).filter((_, i) => i !== index),
-    })
+      actions: ((component as any).actions || []).filter((_: any, i: number) => i !== index),
+    } as any)
   }
 
   const duplicateComponent = () => {
@@ -178,7 +179,259 @@ export default function PropertiesPanel({
     })
   }
 
-  // ── Derived validation values ─────────────────────────────────────────────
+  const OPERATORS = [
+    { value: "equals",        label: "Equals" },
+    { value: "not_equals",    label: "Not Equals" },
+    { value: "contains",      label: "Contains" },
+    { value: "not_contains",  label: "Not Contains" },
+    { value: "is_empty",      label: "Is Empty" },
+    { value: "is_not_empty",  label: "Is Not Empty" },
+    { value: "greater_than",  label: "Greater Than" },
+    { value: "less_than",     label: "Less Than" },
+  ]
+
+  const renderActionsConfig = () => {
+    const actions: any[] = (component as any).actions || []
+    const otherFields = components.filter((c) => c.id !== component.id)
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-sm font-semibold">Visibility Actions</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Control when this field is shown or hidden
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={handleAddAction}>
+            <Plus className="mr-1 h-3 w-3" /> Add Action
+          </Button>
+        </div>
+
+        {actions.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground rounded-lg border border-dashed border-border">
+            <EyeOff className="mx-auto mb-2 h-7 w-7 opacity-30" />
+            <p className="text-sm font-medium">No actions yet</p>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Add an action to control this field's visibility
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {actions.map((action: any, index: number) => {
+              const isConditional = action.type === "conditional"
+              const noValueOps = ["is_empty", "is_not_empty"]
+
+              return (
+                <div
+                  key={index}
+                  className="rounded-xl border border-border bg-muted/20 overflow-hidden"
+                >
+                  {/* Action header */}
+                  <div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-card">
+                    <div className="flex items-center gap-2">
+                      {isConditional
+                        ? <Eye className="h-3.5 w-3.5 text-primary" />
+                        : <Zap className="h-3.5 w-3.5 text-amber-500" />
+                      }
+                      <span className="text-xs font-semibold">Action {index + 1}</span>
+                      <Badge
+                        variant={isConditional ? "default" : "secondary"}
+                        className="text-[10px] px-1.5 py-0 capitalize"
+                      >
+                        {action.type || "always"}
+                      </Badge>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      onClick={() => handleRemoveAction(index)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
+
+                  <div className="p-3 space-y-3">
+                    {/* Type toggle — Always / Conditional */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Visibility Type</Label>
+                      <Select
+                        value={action.type || "always"}
+                        onValueChange={(v) => {
+                          if (v === "always") {
+                            handleUpdateAction(index, {
+                              type: "always",
+                              trigger: undefined,
+                              field: undefined,
+                              operator: undefined,
+                              value: undefined,
+                            })
+                          } else {
+                            handleUpdateAction(index, {
+                              type: "conditional",
+                              trigger: "onChange",
+                              field: action.field || "",
+                              operator: action.operator || "equals",
+                              value: action.value || "",
+                            })
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="always">
+                            Always visible
+                          </SelectItem>
+                          <SelectItem value="conditional">
+                            Conditional
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {!isConditional && (
+                        <p className="text-[10px] text-muted-foreground">
+                          This field is always shown regardless of other values
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Conditional config */}
+                    {isConditional && (
+                      <>
+                        {/* Trigger */}
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Trigger</Label>
+                          <Select
+                            value={action.trigger || "onChange"}
+                            onValueChange={(v) =>
+                              handleUpdateAction(index, { trigger: v })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="onChange">On Change</SelectItem>
+                              <SelectItem value="onLoad">On Load</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Field selector */}
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">
+                            Watch Field <span className="text-destructive">*</span>
+                          </Label>
+                          {otherFields.length === 0 ? (
+                            <p className="text-[10px] text-muted-foreground italic">
+                              No other fields on canvas yet
+                            </p>
+                          ) : (
+                            <Select
+                              value={action.field || ""}
+                              onValueChange={(v) =>
+                                handleUpdateAction(index, { field: v })
+                              }
+                            >
+                              <SelectTrigger
+                                className={`h-8 text-xs ${!action.field ? "border-destructive" : ""}`}
+                              >
+                                <SelectValue placeholder="Select a field…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {otherFields.map((comp) => (
+                                  <SelectItem key={comp.id} value={comp.key}>
+                                    {comp.label}
+                                    <span className="ml-1 text-[10px] text-muted-foreground">
+                                      ({comp.key})
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                          {!action.field && (
+                            <p className="text-[10px] text-destructive">
+                              Field is required
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Operator */}
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Operator</Label>
+                          <Select
+                            value={action.operator || "equals"}
+                            onValueChange={(v) =>
+                              handleUpdateAction(index, {
+                                operator: v,
+                                ...(noValueOps.includes(v) ? { value: undefined } : {}),
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {OPERATORS.map((op) => (
+                                <SelectItem key={op.value} value={op.value}>
+                                  {op.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Value — hidden for is_empty / is_not_empty */}
+                        {!noValueOps.includes(action.operator || "equals") && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">
+                              Value <span className="text-destructive">*</span>
+                            </Label>
+                            <Input
+                              className={`h-8 text-xs ${!action.value?.toString().trim() ? "border-destructive" : ""}`}
+                              placeholder="e.g. salaried, yes, true…"
+                              value={action.value || ""}
+                              onChange={(e) =>
+                                handleUpdateAction(index, { value: e.target.value })
+                              }
+                            />
+                            {!action.value?.toString().trim() && (
+                              <p className="text-[10px] text-destructive">
+                                Value is required
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Summary pill */}
+                        {action.field && (action.value || noValueOps.includes(action.operator)) && (
+                          <div className="rounded-md bg-primary/5 border border-primary/20 px-2.5 py-2">
+                            <p className="text-[11px] text-primary font-medium leading-relaxed">
+                              Show when{" "}
+                              <span className="font-bold">{action.field}</span>{" "}
+                              <span className="italic">
+                                {OPERATORS.find((o) => o.value === action.operator)?.label?.toLowerCase() ?? action.operator}
+                              </span>
+                              {!noValueOps.includes(action.operator) && (
+                                <> <span className="font-bold">"{action.value}"</span></>
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
   const patternValue =
     (component.ui as any).pattern ||
     component.validation?.rules?.find((r: any) => r.type === "pattern")
@@ -761,164 +1014,6 @@ export default function PropertiesPanel({
       </div>
     )
   }
-
-  const validateActions = () => {
-    const errors: Record<number, string[]> = {}
-    ;(component.actions || []).forEach((action, index) => {
-      const errs: string[] = []
-      if (!action.trigger) errs.push("Trigger is required")
-      if (!action.type) errs.push("Action type is required")
-      if (
-        ["setValue", "clearValue", "toggleVisibility"].includes(action.type) &&
-        (!action.target || action.target.length === 0)
-      )
-        errs.push("At least one target component is required")
-      if (action.type === "setValue" && !action.payload?.value?.toString().trim())
-        errs.push("Value to set is required")
-      if (errs.length) errors[index] = errs
-    })
-    return errors
-  }
-
-  const actionErrors = validateActions()
-  const hasActionErrors = Object.keys(actionErrors).length > 0
-
-  const renderActionsConfig = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Label>Actions</Label>
-        <Button size="sm" variant="outline" onClick={handleAddAction}>
-          <Plus className="mr-1 h-3 w-3" /> Add Action
-        </Button>
-      </div>
-
-      {!component.actions?.length ? (
-        <div className="py-6 text-center text-muted-foreground">
-          <Zap className="mx-auto mb-2 h-8 w-8 opacity-50" />
-          <p className="text-sm">No actions configured</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {component.actions.map((action, index) => {
-            const errs = actionErrors[index] || []
-            return (
-              <div
-                key={index}
-                className={`space-y-3 rounded-lg border p-3 ${errs.length ? "border-l-2" : ""}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm font-medium">Action {index + 1}</span>
-                    <Badge variant="outline" className="text-xs">{action.trigger}</Badge>
-                  </div>
-                  <Button size="sm" variant="ghost" onClick={() => handleRemoveAction(index)}>
-                    <Trash2 className="h-3 w-3 text-red-500" />
-                  </Button>
-                </div>
-
-                {/* {errs.length > 0 && (
-                  <p className="text-[10px] text-destructive/80">
-                    {errs.join(" · ")}
-                  </p>
-                )} */}
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Trigger</Label>
-                  <Select
-                    value={action.trigger}
-                    onValueChange={(value: any) =>
-                      handleUpdateAction(index, { trigger: value })
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="onClick">On Click</SelectItem>
-                      <SelectItem value="onChange">On Change</SelectItem>
-                      <SelectItem value="onLoad">On Load</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Action Type</Label>
-                  <Select
-                    value={action.type}
-                    onValueChange={(value: any) =>
-                      handleUpdateAction(index, { type: value, target: [], payload: {} })
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="setValue">Set Value</SelectItem>
-                      <SelectItem value="clearValue">Clear Value</SelectItem>
-                      <SelectItem value="toggleVisibility">Toggle Visibility</SelectItem>
-                      <SelectItem value="resetForm">Reset Form</SelectItem>
-                      {/* <SelectItem value="callApi">Call API</SelectItem> */}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {["setValue", "clearValue", "toggleVisibility"].includes(action.type) && (
-                  <div className="space-y-1.5">
-                    <Label className={`text-xs ${errs.some(e => e.includes("target")) ? "text-destructive" : ""}`}>
-                      Target Components <span className="text-destructive">*</span>
-                    </Label>
-                    <div className="max-h-28 space-y-1 overflow-y-auto rounded border bg-background p-2">
-                      {components
-                        .filter((c) => c.id !== component.id)
-                        .map((comp) => (
-                          <label
-                            key={comp.id}
-                            className="flex cursor-pointer items-center gap-2 text-xs"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={action.target?.includes(comp.id) || false}
-                              onChange={(e) => {
-                                const currentTargets = action.target || []
-                                const newTargets = e.target.checked
-                                  ? [...currentTargets, comp.id]
-                                  : currentTargets.filter((id) => id !== comp.id)
-                                handleUpdateAction(index, { target: newTargets })
-                              }}
-                              className="rounded"
-                            />
-                            {comp.label} ({comp.type})
-                          </label>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
-                {action.type === "setValue" && (
-                  <div className="space-y-1.5">
-                    <Label className={`text-xs ${errs.some(e => e.includes("Value to set")) ? "text-destructive" : ""}`}>
-                      Value to Set <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      className={`h-8 text-xs ${errs.some(e => e.includes("Value to set")) ? "border-destructive" : ""}`}
-                      value={action.payload?.value || ""}
-                      onChange={(e) =>
-                        handleUpdateAction(index, {
-                          payload: { ...action.payload, value: e.target.value },
-                        })
-                      }
-                      placeholder="Enter value..."
-                    />
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
 
   // ── Main render ──────────────────────────────────────────────────────────
   return (
@@ -1536,12 +1631,102 @@ export default function PropertiesPanel({
                       </div>
                     )}
                   </div>
+
+                  {/* Source meta info */}
+                  {/* {dataSource.source_key &&
+                    (() => {
+                      const src = apiSources.find(
+                        (s) => s.source_key === dataSource.source_key
+                      )
+                      if (!src) return null
+                      return (
+                        <div className="space-y-1 rounded border bg-background p-2 text-xs text-muted-foreground">
+                          {src.table_name && (
+                            <div>
+                              <span className="font-medium">Table:</span>{" "}
+                              {src.table_name}
+                            </div>
+                          )}
+                          {src.key_column && (
+                            <div>
+                              <span className="font-medium">Key col:</span>{" "}
+                              {src.key_column}
+                            </div>
+                          )}
+                          {src.input_param && (
+                            <div>
+                              <span className="font-medium">Input param:</span>{" "}
+                              {src.input_param}
+                            </div>
+                          )}
+                          {src.cache_enabled === 1 && (
+                            <div>
+                              <span className="font-medium">Cache TTL:</span>{" "}
+                              {src.cache_ttl}s
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()} */}
                 </div>
               )
               })()}
             </CardContent>
           </Card>
 
+          {/* Dependencies */}
+          {/* <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Link className="h-4 w-4" /> Dependencies
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {component.value?.source === 'component' && (
+                  <div className="p-2.5 border rounded text-xs">
+                    <div className="flex items-center gap-2 font-medium">
+                      <RefreshCw className="h-3.5 w-3.5 text-blue-500" /> Default Value
+                      <Badge variant="outline">From Field</Badge>
+                    </div>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {components.find((c) => c.id === component.value?.componentId)?.label || component.value.componentId}
+                    </p>
+                  </div>
+                )}
+                {component.visibility && component.visibility.conditions.length > 0 && (
+                  <div className="p-2.5 border rounded text-xs">
+                    <div className="flex items-center gap-2 font-medium">
+                      <Eye className="h-3.5 w-3.5 text-purple-500" /> Visibility
+                      <Badge variant="outline">{component.visibility.conditions.length} cond{component.visibility.conditions.length !== 1 ? 's' : ''}</Badge>
+                    </div>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {component.visibility.conditions.map((c) => components.find((x) => x.key === c.key)?.label || c.key).join(', ')}
+                    </p>
+                  </div>
+                )}
+                {component.enabled && component.enabled.conditions.length > 0 && (
+                  <div className="p-2.5 border rounded text-xs">
+                    <div className="flex items-center gap-2 font-medium">
+                      <Settings className="h-3.5 w-3.5 text-orange-500" /> Enable/Disable
+                      <Badge variant="outline">{component.enabled.conditions.length} cond{component.enabled.conditions.length !== 1 ? 's' : ''}</Badge>
+                    </div>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {component.enabled.conditions.map((c) => components.find((x) => x.key === c.key)?.label || c.key).join(', ')}
+                    </p>
+                  </div>
+                )}
+                {!component.value?.source &&
+                  (!component.visibility || component.visibility.conditions.length === 0) &&
+                  (!component.enabled   || component.enabled.conditions.length === 0) && (
+                  <div className="text-center py-4 text-muted-foreground text-xs">
+                    <Link className="h-6 w-6 mx-auto mb-1 opacity-40" />
+                    No dependencies — works independently
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card> */}
         </TabsContent>
       </Tabs>
     </div>
