@@ -70,7 +70,7 @@ function stepFieldToComponentSchema(field: StepField): ComponentSchema {
     type:  mapDataTypeToComponentType(field.type),
     label: field.label,
     ui: {
-      gridColumn:  12,
+      gridColumn:  field.grid_width ?? 12,
       required:    field.required ?? false,
       disabled:    field.ui?.editable === false,
       placeholder: field.placeholder || '',
@@ -123,6 +123,22 @@ function fieldKeyToComponentSchema(item: FieldKeyItem): ComponentSchema {
     };
   }
 
+  // Parse static options from default_options JSON string
+  if (item.default_options) {
+    try {
+      const parsed = typeof item.default_options === 'string'
+        ? JSON.parse(item.default_options)
+        : item.default_options;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        base.options = {
+          static: parsed.map((o: any) => ({ key: o.key, label: o.label })),
+        };
+      }
+    } catch {
+      // malformed JSON — skip silently
+    }
+  }
+
   return base;
 }
 
@@ -146,12 +162,8 @@ function buildUpdatePayload(
 
     const formUiVisible  = c.formUi?.visible  ?? true;
     const formUiEditable = c.formUi?.editable ?? true;
-    // if (!formUiVisible || !formUiEditable) {
-      // field.ui = { visible: formUiVisible, editable: formUiEditable };
-    // }
-
     field.ui = { visible: formUiVisible, editable: formUiEditable };
-    
+
     const regex     = c.ui?.pattern   || c.validation?.rules?.find((r: any) => r.type === 'pattern')?.value;
     const maxLength = c.ui?.maxLength  || c.validation?.rules?.find((r: any) => r.type === 'maxLength')?.value;
     if (regex || maxLength) {
@@ -209,10 +221,9 @@ function buildUpdatePayload(
   return {
     form_id:       formId,
     step_key:      stepKey,
-    // rendered_json: fields,
     rendered_json: {
       fields: fields,
-  },
+    },
   };
 }
 
