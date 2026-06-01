@@ -87,6 +87,7 @@ function stepFieldToComponentSchema(field: StepField): ComponentSchema {
       options: { static: field.options.map((o) => ({ key: o.value, label: o.label })) },
     } : {}),
     ...(field.data_source ? { dataSource: field.data_source } : {}),
+    ...(field.actions?.length ? { actions: field.actions } : {}),
   } as ComponentSchema;
 }
 
@@ -177,21 +178,19 @@ function buildUpdatePayload(
       field.options = c.options.static.map((o: any) => ({ label: o.label, value: o.key }));
     }
 
-    // Serialize visibility actions
+    // Serialize visibility actions — flat shape, no wrapper key
     if ((c as any).actions?.length) {
       field.actions = (c as any).actions.map((a: any) => {
         if (a.type === 'conditional') {
           return {
-            visibility: {
-              type:     'conditional',
-              trigger:  a.trigger  || 'onChange',
-              field:    a.field    || '',
-              operator: a.operator || 'equals',
-              value:    a.value    ?? '',
-            },
+            type:     'conditional',
+            trigger:  a.trigger  || 'onChange',
+            field:    a.field    || '',
+            operator: a.operator || 'equals',
+            value:    a.value    ?? '',
           };
         }
-        return { visibility: { type: 'always' } };
+        return { type: 'always' };
       });
     }
 
@@ -221,7 +220,7 @@ function buildUpdatePayload(
   return {
     form_id:       formId,
     step_key:      stepKey,
-    rendered_json: {
+     rendered_json: {
       fields: fields,
     },
   };

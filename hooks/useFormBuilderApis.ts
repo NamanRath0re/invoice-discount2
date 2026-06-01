@@ -55,6 +55,13 @@ export interface StepField {
   type: string;
   label: string;
   grid_width?: number;
+  actions?: Array<{
+    type: 'always' | 'conditional';
+    trigger?: string;
+    field?: string;
+    operator?: string;
+    value?: string;
+  }>;
   required?: boolean;
   placeholder?: string;
   options?: Array<{ label: string; value: string }>;
@@ -78,7 +85,6 @@ export interface FormStepData {
   rendered_json: {
     fields: StepField[];
   };
-  // rendered_json: StepField[];
   hash_key: string;
   version: number;
 }
