@@ -118,7 +118,7 @@ interface FieldDef {
   placeholder?: string;
   validation?: Validation;
   data_source?: DataSource;
-  options?: Array<{ label: string; value: string }>;
+  options?: Array<{ key: string; label: string }>;
   ui?: { visible?: boolean; editable?: boolean };
   actions?: FieldAction[];
 }
@@ -246,7 +246,7 @@ function FieldInput({
           <SelectContent>
             {field.options?.length ? (
               field.options.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                <SelectItem key={opt.key} value={opt.key}>{opt.label}</SelectItem>
               ))
             ) : (
               <SelectItem value="__empty" disabled>No options available</SelectItem>

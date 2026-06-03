@@ -61,40 +61,47 @@ export default function PropertiesPanel({
   const [newOptionKey, setNewOptionKey] = useState("")
   const [newOptionLabel, setNewOptionLabel] = useState("")
 
+  // ── Local options draft — prevents focus loss on every keystroke ─────────
+  // We keep a local copy and only push to parent onBlur / add / remove.
+  const [optionsDraft, setOptionsDraft] = useState<Array<{ key: string; label: string }>>(
+    () => component.options?.static ?? []
+  )
+
+  // Sync draft when the selected component changes (different field selected)
+  useEffect(() => {
+    setOptionsDraft(component.options?.static ?? [])
+  }, [component.id])
+
+  const persistOptions = (draft: Array<{ key: string; label: string }>) => {
+    onUpdate(component.id, {
+      options: { ...component.options, static: draft },
+    })
+  }
+
   // ── Option helpers ───────────────────────────────────────────────────────
   const handleAddOption = () => {
     if (!newOptionKey.trim() || !newOptionLabel.trim()) return
-    const currentOptions = component.options?.static || []
-    onUpdate(component.id, {
-      options: {
-        ...component.options,
-        static: [
-          ...currentOptions,
-          { key: newOptionKey.trim(), label: newOptionLabel.trim() },
-        ],
-      },
-    })
+    const updated = [...optionsDraft, { key: newOptionKey.trim(), label: newOptionLabel.trim() }]
+    setOptionsDraft(updated)
+    persistOptions(updated)
     setNewOptionKey("")
     setNewOptionLabel("")
   }
 
   const handleRemoveOption = (index: number) => {
-    const currentOptions = component.options?.static || []
-    onUpdate(component.id, {
-      options: {
-        ...component.options,
-        static: currentOptions.filter((_, i) => i !== index),
-      },
-    })
+    const updated = optionsDraft.filter((_, i) => i !== index)
+    setOptionsDraft(updated)
+    persistOptions(updated)
   }
 
-  const handleUpdateOption = (index: number, key: string, label: string) => {
-    const currentOptions = component.options?.static || []
-    const updated = [...currentOptions]
-    updated[index] = { key, label }
-    onUpdate(component.id, {
-      options: { ...component.options, static: updated },
-    })
+  // Update draft locally on every keystroke — no parent re-render
+  const handleOptionDraftChange = (index: number, field: "key" | "label", value: string) => {
+    setOptionsDraft((prev) => prev.map((o, i) => i === index ? { ...o, [field]: value } : o))
+  }
+
+  // Push to parent only on blur
+  const handleOptionBlur = () => {
+    persistOptions(optionsDraft)
   }
 
   // ── Rule helpers ─────────────────────────────────────────────────────────
@@ -714,25 +721,23 @@ export default function PropertiesPanel({
           <div className="space-y-2">
             <Label className="text-xs">Static Options</Label>
             <div className="space-y-2">
-              {component.options?.static?.map((option, index) => (
+              {optionsDraft.map((option, index) => (
                 <div
-                  key={option.key || index}
+                  key={index}
                   className="flex items-center gap-2"
                 >
                   <div className="flex-1 space-y-1">
                     <Input
-                      value={option.key || ""}
-                      onChange={(e) =>
-                        handleUpdateOption(index, e.target.value, option.label)
-                      }
+                      value={option.key}
+                      onChange={(e) => handleOptionDraftChange(index, "key", e.target.value)}
+                      onBlur={handleOptionBlur}
                       placeholder="Option key"
                       className="h-8 text-xs"
                     />
                     <Input
-                      value={option.label || ""}
-                      onChange={(e) =>
-                        handleUpdateOption(index, option.key, e.target.value)
-                      }
+                      value={option.label}
+                      onChange={(e) => handleOptionDraftChange(index, "label", e.target.value)}
+                      onBlur={handleOptionBlur}
                       placeholder="Display label"
                       className="h-8 text-xs"
                     />

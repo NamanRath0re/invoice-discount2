@@ -52,9 +52,13 @@ const DATA_TYPE_ICONS: Record<string, React.ReactNode> = {
 
 function mapDataTypeToComponentType(dt: string): ComponentSchema['type'] {
   switch (dt) {
-    case 'boolean': return 'switch';
-    case 'select':  return 'select';
-    default:        return 'input';
+    case 'boolean':  return 'switch';
+    case 'select':   return 'select';
+    case 'radio':    return 'radio';
+    case 'checkbox': return 'checkbox';
+    case 'file':     return 'file';
+    case 'textarea': return 'textarea';
+    default:         return 'input';
   }
 }
 
@@ -65,9 +69,10 @@ function stepFieldToComponentSchema(field: StepField): ComponentSchema {
   if (field.validation?.max_length) validationRules.push({ type: 'maxLength', value: field.validation.max_length });
 
   return {
-    id:    `comp-${field.key}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-    key:   field.key,
-    type:  mapDataTypeToComponentType(field.type),
+    id:       `comp-${field.key}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    key:      field.key,
+    type:     mapDataTypeToComponentType(field.type),
+    dataType: field.type,   // preserve original API data_type for serialization
     label: field.label,
     ui: {
       gridColumn:  field.grid_width ?? 12,
@@ -84,7 +89,7 @@ function stepFieldToComponentSchema(field: StepField): ComponentSchema {
     },
     ...(validationRules.length > 0 ? { validation: { rules: validationRules } } : {}),
     ...(field.options ? {
-      options: { static: field.options.map((o) => ({ key: o.value, label: o.label })) },
+      options: { static: field.options.map((o) => ({ key: o.key, label: o.label })) },
     } : {}),
     ...(field.data_source ? { dataSource: field.data_source } : {}),
     ...(field.actions?.length ? { actions: field.actions } : {}),
@@ -98,9 +103,10 @@ function fieldKeyToComponentSchema(item: FieldKeyItem): ComponentSchema {
   if (item.max_length)       validationRules.push({ type: 'maxLength', value: item.max_length });
 
   const base: ComponentSchema = {
-    id:    `comp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    key:   item.field_key,
-    type:  mapDataTypeToComponentType(item.data_type),
+    id:       `comp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    key:      item.field_key,
+    type:     mapDataTypeToComponentType(item.data_type),
+    dataType: item.data_type,  // preserve original API data_type for serialization
     label: item.field_label,
     ui: {
       gridColumn:  12,
@@ -152,9 +158,9 @@ function buildUpdatePayload(
 ) {
   const fields = components.map((c: any) => {
     const field: any = {
-      key:   c.key,
-      type:  c.type === 'input' ? 'text' : c.type === 'switch' ? 'boolean' : c.type,
-      label: c.label,
+      key:        c.key,
+      type:       (c as any).dataType ?? c.type,  // use original API data_type
+      label:      c.label,
       grid_width: c.ui?.gridColumn ?? 12,
     };
 
@@ -175,7 +181,7 @@ function buildUpdatePayload(
     }
 
     if (c.options?.static?.length) {
-      field.options = c.options.static.map((o: any) => ({ label: o.label, value: o.key }));
+      field.options = c.options.static.map((o: any) => ({ key: o.key, label: o.label }));
     }
 
     // Serialize visibility actions — flat shape, no wrapper key
@@ -220,7 +226,7 @@ function buildUpdatePayload(
   return {
     form_id:       formId,
     step_key:      stepKey,
-     rendered_json: {
+    rendered_json: {
       fields: fields,
     },
   };

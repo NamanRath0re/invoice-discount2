@@ -1,4 +1,4 @@
-export type ComponentType = 'input' | 'textarea' | 'select' | 'radio' | 'button' | 'label' | 'switch' | 'file' | 'date' | 'custom';
+export type ComponentType = 'input' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'button' | 'label' | 'switch' | 'file' | 'date' | 'custom';
 
 export interface FormSchema {
   id: string;
@@ -102,12 +102,20 @@ export interface Condition {
   value?: any;
 }
 
+export interface ValueMapping {
+  value: string;           // the field value that triggers this rule (e.g. "yes", "option_a")
+  show: string[];          // component IDs to make visible
+  hide: string[];          // component IDs to hide
+}
+
 export interface ActionSchema {
   trigger: 'onClick' | 'onChange' | 'onLoad';
-  type: 'setValue' | 'clearValue' | 'toggleVisibility' | 'resetForm' | 'callApi';
+  type: 'setValue' | 'clearValue' | 'toggleVisibility' | 'resetForm' | 'callApi' | 'showHideByValue';
   target?: string[];
   payload?: any;
   delay?: number;
+  // Used only when type === 'showHideByValue'
+  valueMappings?: ValueMapping[];
 }
 
 export interface ValidationRule {
