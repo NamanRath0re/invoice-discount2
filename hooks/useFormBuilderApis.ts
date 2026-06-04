@@ -66,7 +66,16 @@ export interface StepField {
   placeholder?: string;
   options?: Array<{ key: string; label: string }>;
   conditions?: Array<{ value: string; operator: string; depends_on: string }>;
-  validation?: { regex?: string; max_length?: number };
+  validation?: {
+    regex?: string;
+    min_length?: number;
+    max_length?: number;
+    min_value?: number;
+    max_value?: number;
+  };
+  multi_select?: boolean;
+  date_range?: boolean;
+  multi_upload?: boolean;
   data_source?: {
     type: string;
     method?: string;

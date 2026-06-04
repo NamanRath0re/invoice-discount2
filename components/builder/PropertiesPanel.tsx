@@ -449,9 +449,16 @@ export default function PropertiesPanel({
     component.validation?.rules?.find((r: any) => r.type === "maxLength")
       ?.value ??
     ""
+  const minLengthValue =
+    (component.ui as any).minLength ??
+    component.validation?.rules?.find((r: any) => r.type === "minLength")
+      ?.value ??
+    ""
+  const minValue = (component.ui as any).minValue ?? ""
+  const maxValue = (component.ui as any).maxValue ?? ""
 
-  const updateValidationField = (field: "pattern" | "maxLength", val: any) => {
-    const ruleType = field === "pattern" ? "pattern" : "maxLength"
+  const updateValidationField = (field: "pattern" | "maxLength" | "minLength", val: any) => {
+    const ruleType = field === "pattern" ? "pattern" : field === "maxLength" ? "maxLength" : "minLength"
     const rules = (component.validation?.rules || []).filter(
       (r: any) => r.type !== ruleType
     )
@@ -459,6 +466,12 @@ export default function PropertiesPanel({
     onUpdate(component.id, {
       ui: { ...component.ui, [field]: val || undefined } as any,
       validation: { ...component.validation, rules },
+    })
+  }
+
+  const updateUiField = (key: string, val: any) => {
+    onUpdate(component.id, {
+      ui: { ...component.ui, [key]: val } as any,
     })
   }
 
@@ -1159,7 +1172,81 @@ export default function PropertiesPanel({
             </Select>
           </div>
 
-          {/* Validation – max-length + regex (input / textarea only) */}
+          {/* ── Type-specific toggles ── */}
+
+          {/* Multi-select toggle — select only */}
+          {component.type === "select" && (
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+              <div>
+                <Label className="text-sm">Multi-select</Label>
+                <p className="text-xs text-muted-foreground">Allow selecting multiple options</p>
+              </div>
+              <Switch
+                checked={(component.ui as any).multiSelect ?? false}
+                onCheckedChange={(v) => updateUiField("multiSelect", v)}
+              />
+            </div>
+          )}
+
+          {/* Date range toggle — date only */}
+          {component.type === "date" && (
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+              <div>
+                <Label className="text-sm">Date Range</Label>
+                <p className="text-xs text-muted-foreground">Allow picking a start and end date</p>
+              </div>
+              <Switch
+                checked={(component.ui as any).dateRange ?? false}
+                onCheckedChange={(v) => updateUiField("dateRange", v)}
+              />
+            </div>
+          )}
+
+          {/* Multi-upload toggle — file only */}
+          {component.type === "file" && (
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+              <div>
+                <Label className="text-sm">Multi-upload</Label>
+                <p className="text-xs text-muted-foreground">Allow uploading multiple files</p>
+              </div>
+              <Switch
+                checked={(component.ui as any).multiUpload ?? false}
+                onCheckedChange={(v) => updateUiField("multiUpload", v)}
+              />
+            </div>
+          )}
+
+          {/* Min / Max value — number & decimal */}
+          {["number", "decimal"].includes((component as any).dataType ?? "") && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="component-minval" className="text-xs">Min Value</Label>
+                <Input
+                  id="component-minval"
+                  type="number"
+                  placeholder="e.g. 18"
+                  value={minValue}
+                  onChange={(e) =>
+                    updateUiField("minValue", e.target.value ? Number(e.target.value) : undefined)
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="component-maxval" className="text-xs">Max Value</Label>
+                <Input
+                  id="component-maxval"
+                  type="number"
+                  placeholder="e.g. 60"
+                  value={maxValue}
+                  onChange={(e) =>
+                    updateUiField("maxValue", e.target.value ? Number(e.target.value) : undefined)
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Validation – min-length, max-length + regex (input / textarea only) */}
           {["input", "textarea"].includes(component.type) && (
             <>
               <div className="grid grid-cols-2 gap-3">
@@ -1170,16 +1257,12 @@ export default function PropertiesPanel({
                   <Input
                     id="component-minlength"
                     type="number"
-                    value={(component.ui as any).minLength ?? ""}
+                    value={minLengthValue}
                     onChange={(e) =>
-                      onUpdate(component.id, {
-                        ui: {
-                          ...component.ui,
-                          minLength: e.target.value
-                            ? parseInt(e.target.value)
-                            : undefined,
-                        } as any,
-                      })
+                      updateValidationField(
+                        "minLength",
+                        e.target.value ? parseInt(e.target.value) : undefined
+                      )
                     }
                     placeholder="0"
                   />

@@ -55,6 +55,7 @@ function mapDataTypeToComponentType(dt: string): ComponentSchema['type'] {
     case 'boolean':  return 'switch';
     case 'select':   return 'select';
     case 'radio':    return 'radio';
+    case 'date':    return 'date';
     case 'checkbox': return 'checkbox';
     case 'file':     return 'file';
     case 'textarea': return 'textarea';
@@ -65,23 +66,30 @@ function mapDataTypeToComponentType(dt: string): ComponentSchema['type'] {
 /** Convert a StepField (from getFormStep API) → ComponentSchema */
 function stepFieldToComponentSchema(field: StepField): ComponentSchema {
   const validationRules: any[] = [];
-  if (field.validation?.regex)      validationRules.push({ type: 'pattern',   value: field.validation.regex });
-  if (field.validation?.max_length) validationRules.push({ type: 'maxLength', value: field.validation.max_length });
+  if (field.validation?.regex)       validationRules.push({ type: 'pattern',   value: field.validation.regex });
+  if (field.validation?.max_length)  validationRules.push({ type: 'maxLength', value: field.validation.max_length });
+  if (field.validation?.min_length)  validationRules.push({ type: 'minLength', value: field.validation.min_length });
 
   return {
     id:       `comp-${field.key}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
     key:      field.key,
     type:     mapDataTypeToComponentType(field.type),
-    dataType: field.type,   // preserve original API data_type for serialization
-    label: field.label,
+    dataType: field.type,
+    label:    field.label,
     ui: {
       gridColumn:  field.grid_width ?? 12,
       required:    field.required ?? false,
       disabled:    field.ui?.editable === false,
       placeholder: field.placeholder || '',
       helpText:    '',
-      ...(field.validation?.max_length ? { maxLength: field.validation.max_length } : {}),
-      ...(field.validation?.regex      ? { pattern:   field.validation.regex }      : {}),
+      ...(field.validation?.max_length != null ? { maxLength: field.validation.max_length } : {}),
+      ...(field.validation?.min_length != null ? { minLength: field.validation.min_length } : {}),
+      ...(field.validation?.regex             ? { pattern:   field.validation.regex }       : {}),
+      ...(field.validation?.min_value != null ? { minValue:  field.validation.min_value }   : {}),
+      ...(field.validation?.max_value != null ? { maxValue:  field.validation.max_value }   : {}),
+      ...(field.multi_select  != null ? { multiSelect:  field.multi_select  } : {}),
+      ...(field.date_range    != null ? { dateRange:    field.date_range    } : {}),
+      ...(field.multi_upload  != null ? { multiUpload:  field.multi_upload  } : {}),
     },
     formUi: {
       visible:  field.ui?.visible  ?? true,
@@ -173,12 +181,23 @@ function buildUpdatePayload(
 
     const regex     = c.ui?.pattern   || c.validation?.rules?.find((r: any) => r.type === 'pattern')?.value;
     const maxLength = c.ui?.maxLength  || c.validation?.rules?.find((r: any) => r.type === 'maxLength')?.value;
-    if (regex || maxLength) {
+    const minLength = c.ui?.minLength  || c.validation?.rules?.find((r: any) => r.type === 'minLength')?.value;
+    const minValue  = c.ui?.minValue;
+    const maxValue  = c.ui?.maxValue;
+    if (regex || maxLength || minLength || minValue != null || maxValue != null) {
       field.validation = {
-        ...(regex     ? { regex }               : {}),
-        ...(maxLength ? { max_length: maxLength } : {}),
+        ...(regex     ? { regex }                  : {}),
+        ...(maxLength ? { max_length: maxLength }  : {}),
+        ...(minLength ? { min_length: minLength }  : {}),
+        ...(minValue != null ? { min_value: minValue } : {}),
+        ...(maxValue != null ? { max_value: maxValue } : {}),
       };
     }
+
+    // Field-type specific flags
+    if (c.ui?.multiSelect  != null) field.multi_select  = c.ui.multiSelect;
+    if (c.ui?.dateRange    != null) field.date_range    = c.ui.dateRange;
+    if (c.ui?.multiUpload  != null) field.multi_upload  = c.ui.multiUpload;
 
     if (c.options?.static?.length) {
       field.options = c.options.static.map((o: any) => ({ key: o.key, label: o.label }));

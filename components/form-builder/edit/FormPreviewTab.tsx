@@ -240,7 +240,7 @@ function FieldInput({
     case "select":
       return (
         <Select value={value || ""} onValueChange={(v) => onChange(field.key, v)} disabled={!editable}>
-          <SelectTrigger className={disabledClass}>
+          <SelectTrigger className={`w-full ${disabledClass}`}>
             <SelectValue placeholder={`Select ${field.label.toLowerCase()}…`} />
           </SelectTrigger>
           <SelectContent>

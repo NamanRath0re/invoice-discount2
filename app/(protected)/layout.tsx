@@ -49,7 +49,7 @@ export default function ProtectedLayout({
         <TopNavbar />
 
         {/* Body row: sidebar + content */}
-        <div className="flex flex-1">
+        <div className="flex flex-1  overflow-hidden">
       {/* collapsible="icon" and sidebar-offset are set inside AppSidebar */}
           <AppSidebar />
           <SidebarInset className="flex flex-col flex-1 border-l">

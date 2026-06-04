@@ -859,6 +859,7 @@ function Sidebar({
   className,
   children,
   dir,
+  style: propStyle,
   ...props
 }: React.ComponentProps<"div"> & {
   side?: "left" | "right"
@@ -942,8 +943,8 @@ function Sidebar({
         )}
         style={{
           top: "var(--sidebar-offset, 0px)",
-          height: "calc(100svh - var(--sidebar-offset, 0px))",
-          ...(props.style as React.CSSProperties | undefined),
+          height: "calc(100svh - var(--sidebar-offset, 0px) - 2.5rem)",
+          ...(propStyle as React.CSSProperties | undefined),
         }}
         {...props}
       >
