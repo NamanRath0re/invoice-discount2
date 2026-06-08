@@ -118,7 +118,7 @@ interface FieldDef {
   placeholder?: string;
   validation?: Validation;
   data_source?: DataSource;
-  options?: Array<{ key: string; label: string }>;
+  options?: Array<{ value: string; label: string }>;
   ui?: { visible?: boolean; editable?: boolean };
   actions?: FieldAction[];
 }
@@ -246,7 +246,7 @@ function FieldInput({
           <SelectContent>
             {field.options?.length ? (
               field.options.map((opt) => (
-                <SelectItem key={opt.key} value={opt.key}>{opt.label}</SelectItem>
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))
             ) : (
               <SelectItem value="__empty" disabled>No options available</SelectItem>
@@ -578,10 +578,10 @@ export function FormPreviewTab({ formId }: FormPreviewTabProps) {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="mt-4 space-y-4 w-full min-w-0 overflow-hidden">
-      {/* Step progress bar */}
-      <div className="w-full min-w-0 overflow-x-auto overflow-y-hidden scrollbar-hide">
-        <div className="flex items-center gap-1 pb-2 w-max">
+    <div className="mt-4 space-y-4 w-full min-w-0">
+      {/* Step progress bar — scrolls horizontally when steps overflow */}
+      <div className="w-full overflow-x-auto overflow-y-hidden no-scrollbar">
+        <div className="flex items-center gap-1 pb-1 w-max min-w-full">
         {steps.map((step, index) => {
           const isActive = step.step_key === activeStep;
           const isDone = step.step_order < currentStep.step_order;

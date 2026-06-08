@@ -48,19 +48,17 @@ export default function ProtectedLayout({
         {/* TopNavbar — full width, logo left panel + toolbar right */}
         <TopNavbar />
 
-        {/* Body row: sidebar + content */}
-        <div className="flex flex-1  overflow-hidden">
+        {/* Body row: min-w-0 + overflow-hidden lets SidebarInset shrink on small screens */}
+        <div className="flex flex-1 min-w-0 overflow-hidden">
       {/* collapsible="icon" and sidebar-offset are set inside AppSidebar */}
           <AppSidebar />
-          <SidebarInset className="flex flex-col flex-1 border-l">
-            <div className="flex flex-1 flex-col p-4 pb-14">
+          <SidebarInset className="flex flex-col flex-1 border-l min-w-0">
+            <div className="flex flex-1 flex-col p-4 pb-14 min-w-0 overflow-hidden">
               {children}
             </div>
           </SidebarInset>
         </div>
-
       </div>
-
       <AppFooter />
     </SidebarProvider>
   )

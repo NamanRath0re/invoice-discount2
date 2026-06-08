@@ -54,7 +54,7 @@ function FormEditView({ formId }: { formId: string }) {
   const defaultTab = searchParams.get("tab") ?? "details";
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 min-w-0 w-full">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="outline" size="icon-sm" onClick={() => router.push(`/form_builder`)}>
@@ -97,9 +97,10 @@ function FormEditView({ formId }: { formId: string }) {
 
       {/* Tabs */}
       <Tabs defaultValue={defaultTab}>
-        <TabsList className="w-full">
-          <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
-          <TabsTrigger value="sections" className="flex-1">
+        {/* grid-cols-3 gives each tab exactly 1/3 width regardless of content */}
+        <TabsList className="w-full grid grid-cols-3">
+          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="sections">
             Sections
             {!loading && data && data.steps.length > 0 && (
               <span className="ml-1.5 inline-flex size-4 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
@@ -107,7 +108,7 @@ function FormEditView({ formId }: { formId: string }) {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="preview" className="flex-1">Preview</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
         <div className="px-4">
           <TabsContent value="details">
