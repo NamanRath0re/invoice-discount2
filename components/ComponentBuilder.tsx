@@ -55,10 +55,11 @@ function mapDataTypeToComponentType(dt: string): ComponentSchema['type'] {
     case 'boolean':  return 'switch';
     case 'select':   return 'select';
     case 'radio':    return 'radio';
-    case 'date':    return 'date';
     case 'checkbox': return 'checkbox';
     case 'file':     return 'file';
     case 'textarea': return 'textarea';
+    case 'date':     return 'date';
+    case 'button':   return 'button';
     default:         return 'input';
   }
 }
@@ -657,7 +658,7 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
           </div>
 
           {/* ── CENTER — Canvas / Preview ────────────────────────────── */}
-          <div className="w-full min-w-0 flex-1">
+          <div className="w-full min-w-0 flex-1 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto overflow-hidden">
             <Card className="border shadow-sm">
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
                 <CardHeader className="pb-0 pt-3 px-4">
