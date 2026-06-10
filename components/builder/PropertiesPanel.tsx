@@ -695,7 +695,7 @@ export default function PropertiesPanel({
   }
 
   const renderOptionsConfig = () => {
-    if (!["select", "radio"].includes(component.type)) return null
+    if (!["select", "radio", "checkbox"].includes(component.type)) return null
     return (
       <div className="space-y-4">
         <div className="space-y-1.5">
