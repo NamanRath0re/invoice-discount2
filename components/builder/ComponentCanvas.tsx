@@ -28,6 +28,19 @@ interface ComponentCanvasProps {
   onAddComponent?: (type: ComponentSchema['type']) => void;
 }
 
+// ── Responsive col-span helper ──────────────────────────────────────────────
+const SPAN: Record<number, string> = { 2:'col-span-2', 3:'col-span-3', 4:'col-span-4', 6:'col-span-6', 8:'col-span-8', 12:'col-span-12' };
+const MD: Record<number, string>   = { 2:'md:col-span-2', 3:'md:col-span-3', 4:'md:col-span-4', 6:'md:col-span-6', 8:'md:col-span-8', 12:'md:col-span-12' };
+const LG: Record<number, string>   = { 2:'lg:col-span-2', 3:'lg:col-span-3', 4:'lg:col-span-4', 6:'lg:col-span-6', 8:'lg:col-span-8', 12:'lg:col-span-12' };
+
+function getResponsiveClasses(ui: any): string {
+  const r = ui?.responsive;
+  const lg = r?.lg ?? ui?.gridColumn ?? 12;
+  const md = r?.md ?? lg;
+  const sm = r?.sm ?? 12;
+  return [SPAN[sm] ?? 'col-span-12', MD[md] ?? 'md:col-span-12', LG[lg] ?? 'lg:col-span-12'].join(' ');
+}
+
 export default function ComponentCanvas({
   schema,
   selectedComponent,
@@ -106,7 +119,8 @@ export default function ComponentCanvas({
       if (!comp) return;
       const newSpan = Math.max(2, Math.min(12, resizeStartSpanRef.current + deltaCols));
       if (newSpan !== comp.ui.gridColumn) {
-        onUpdateComponentRef.current(comp.id, { ui: { ...comp.ui, gridColumn: newSpan } });
+        const r2 = (comp.ui as any).responsive ?? { sm:12, md:comp.ui.gridColumn, lg:comp.ui.gridColumn };
+        onUpdateComponentRef.current(comp.id, { ui: { ...comp.ui, gridColumn: newSpan, responsive: {...r2, lg:newSpan} } as any });
       }
     };
     const onUp = () => { isResizingRef.current = false; resizingIdRef.current = null; };
@@ -118,7 +132,8 @@ export default function ComponentCanvas({
       if (!comp) return;
       const newSpan = Math.max(2, Math.min(12, resizeStartSpanRef.current + deltaCols));
       if (newSpan !== comp.ui.gridColumn) {
-        onUpdateComponentRef.current(comp.id, { ui: { ...comp.ui, gridColumn: newSpan } });
+        const r2 = (comp.ui as any).responsive ?? { sm:12, md:comp.ui.gridColumn, lg:comp.ui.gridColumn };
+        onUpdateComponentRef.current(comp.id, { ui: { ...comp.ui, gridColumn: newSpan, responsive: {...r2, lg:newSpan} } as any });
       }
     };
     window.addEventListener('mousemove', onMove);
@@ -136,14 +151,18 @@ export default function ComponentCanvas({
   const expandComponent = (componentId: string) => {
     const component = schema.components.find(c => c.id === componentId);
     if (component) {
-      onUpdateComponent(componentId, { ui: { ...component.ui, gridColumn: Math.min(component.ui.gridColumn + 2, 12) } });
+      const n = Math.min(component.ui.gridColumn + 2, 12);
+      const r = (component.ui as any).responsive ?? { sm:12, md:component.ui.gridColumn, lg:component.ui.gridColumn };
+      onUpdateComponent(componentId, { ui: { ...component.ui, gridColumn: n, responsive: {...r, lg:n} } as any });
     }
   };
 
   const shrinkComponent = (componentId: string) => {
     const component = schema.components.find(c => c.id === componentId);
     if (component) {
-      onUpdateComponent(componentId, { ui: { ...component.ui, gridColumn: Math.max(component.ui.gridColumn - 2, 2) } });
+      const n = Math.max(component.ui.gridColumn - 2, 2);
+      const r = (component.ui as any).responsive ?? { sm:12, md:component.ui.gridColumn, lg:component.ui.gridColumn };
+      onUpdateComponent(componentId, { ui: { ...component.ui, gridColumn: n, responsive: {...r, lg:n} } as any });
     }
   };
 
@@ -166,13 +185,13 @@ export default function ComponentCanvas({
 
   const renderComponentPreview = (component: ComponentSchema) => {
     const isSelected = selectedComponent?.id === component.id;
-    const gridStyle = { gridColumn: `span ${component.ui.gridColumn || 12}` };
+    const responsiveClasses = getResponsiveClasses(component.ui);
 
     return (
       <div
         key={component.id}
-        style={gridStyle}
         className={cn(
+          responsiveClasses,
           'transition-all',
           dragOverIndex === schema.components.indexOf(component) && 'border-2 border-primary'
         )}
@@ -206,7 +225,7 @@ export default function ComponentCanvas({
               <GripVertical className="h-4 w-4 cursor-move" />
               <span className="font-medium capitalize">{component.type}</span>
               <Badge variant="outline" className="text-xs">
-                {component.ui.gridColumn}/12
+                {(() => { const r=(component.ui as any).responsive; const lg=r?.lg??component.ui.gridColumn??12; const md=r?.md??lg; const sm=r?.sm??12; return sm===md&&md===lg?`${lg}/12`:`${sm}·${md}·${lg}`; })()}
               </Badge>
             </div>
             <div className="flex gap-1">

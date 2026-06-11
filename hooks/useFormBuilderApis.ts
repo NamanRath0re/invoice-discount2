@@ -55,6 +55,11 @@ export interface StepField {
   type: string;
   label: string;
   grid_width?: number;
+  responsive?: {
+    sm?: number;
+    md?: number;
+    lg?: number;
+  };
   actions?: Array<{
     type: 'always' | 'conditional';
     trigger?: string;

@@ -1149,29 +1149,50 @@ export default function PropertiesPanel({
           </div>
           )}
 
-          {/* Grid Width */}
-          <div className="space-y-1.5">
-            <Label className="text-xs">Grid Width</Label>
-            <Select
-              value={String(component.ui.gridColumn)}
-              onValueChange={(value) =>
-                onUpdate(component.id, {
-                  ui: { ...component.ui, gridColumn: parseInt(value) },
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2">2/12 (Tiny)</SelectItem>
-                <SelectItem value="3">3/12 (Small)</SelectItem>
-                <SelectItem value="4">4/12 (Third)</SelectItem>
-                <SelectItem value="6">6/12 (Half)</SelectItem>
-                <SelectItem value="8">8/12 (Large)</SelectItem>
-                <SelectItem value="12">12/12 (Full)</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Grid Width — responsive breakpoints */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold">Grid Width</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {(["sm", "md", "lg"] as const).map((bp) => {
+                const icons: Record<string, string> = { sm: "📱", md: "💻", lg: "🖥️" }
+                const labels: Record<string, string> = { sm: "Mobile", md: "Tablet", lg: "Desktop" }
+                const currentR = (component.ui as any).responsive ?? { sm: 12, md: component.ui.gridColumn ?? 12, lg: component.ui.gridColumn ?? 12 }
+                return (
+                  <div key={bp} className="space-y-1">
+                    {/* <p className="text-[10px] text-muted-foreground text-center"> */}
+                    <p className="text-[10px] text-muted-foreground">
+                      {icons[bp]} {labels[bp]}
+                      {/* {icons[bp]} {labels[bp]} */}
+                    </p>
+                    <Select
+                      value={String(currentR[bp] ?? 12)}
+                      onValueChange={(val) => {
+                        const newR = { ...currentR, [bp]: parseInt(val) }
+                        const lgVal = bp === "lg" ? parseInt(val) : (currentR.lg ?? component.ui.gridColumn ?? 12)
+                        onUpdate(component.id, {
+                          ui: { ...component.ui, gridColumn: lgVal, responsive: newR } as any,
+                        })
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2">2/12</SelectItem>
+                        <SelectItem value="3">3/12</SelectItem>
+                        <SelectItem value="4">4/12</SelectItem>
+                        <SelectItem value="6">6/12</SelectItem>
+                        <SelectItem value="8">8/12</SelectItem>
+                        <SelectItem value="12">12/12</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )
+              })}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Desktop value also controls canvas layout and payload <code>grid_width</code>
+            </p>
           </div>
 
           {/* ── Type-specific toggles — hidden for button ── */}

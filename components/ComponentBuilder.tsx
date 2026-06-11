@@ -79,6 +79,11 @@ function stepFieldToComponentSchema(field: StepField): ComponentSchema {
     label:    field.label,
     ui: {
       gridColumn:  field.grid_width ?? 12,
+      responsive: {
+        sm: field.responsive?.sm ?? 12,
+        md: field.responsive?.md ?? Math.min(field.grid_width ?? 12, 12),
+        lg: field.responsive?.lg ?? (field.grid_width ?? 12),
+      },
       required:    field.required ?? false,
       disabled:    field.ui?.editable === false,
       placeholder: field.placeholder || '',
@@ -119,6 +124,7 @@ function fieldKeyToComponentSchema(item: FieldKeyItem): ComponentSchema {
     label: item.field_label,
     ui: {
       gridColumn:  12,
+      responsive: { sm: 12, md: 12, lg: 12 },
       required:    item.is_required === 1,
       disabled:    item.is_editable === 0,
       placeholder: item.placeholder || '',
@@ -171,6 +177,7 @@ function buildUpdatePayload(
       type:       (c as any).dataType ?? c.type,  // use original API data_type
       label:      c.label,
       grid_width: c.ui?.gridColumn ?? 12,
+      responsive: (c.ui as any)?.responsive ?? { sm: 12, md: c.ui?.gridColumn ?? 12, lg: c.ui?.gridColumn ?? 12 },
     };
 
     if (c.ui?.required)    field.required    = true;

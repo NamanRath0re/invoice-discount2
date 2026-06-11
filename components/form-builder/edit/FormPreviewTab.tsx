@@ -27,7 +27,8 @@ import { Button } from "@/components/ui/button";
 
 // ─── API config ───────────────────────────────────────────────────────────────
 
-const BASE_URL = "http://192.168.6.6/www8/2013-Backend/api/v1";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://192.168.6.6/www8/2013-Backend/api/v1";
+// const BASE_URL = "http://192.168.6.6/www8/2013-Backend/api/v1";
 const HEADERS: Record<string, string> = {
   "Content-Type": "application/json",
   "X-tenant-code": "demo",
