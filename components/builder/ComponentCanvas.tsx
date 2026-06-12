@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, DragEvent, useEffect } from 'react';
+import React, { useState, useRef, DragEvent, useEffect } from 'react';
 import {
   GripVertical,
   Maximize2,
@@ -33,12 +33,16 @@ const SPAN: Record<number, string> = { 2:'col-span-2', 3:'col-span-3', 4:'col-sp
 const MD: Record<number, string>   = { 2:'md:col-span-2', 3:'md:col-span-3', 4:'md:col-span-4', 6:'md:col-span-6', 8:'md:col-span-8', 12:'md:col-span-12' };
 const LG: Record<number, string>   = { 2:'lg:col-span-2', 3:'lg:col-span-3', 4:'lg:col-span-4', 6:'lg:col-span-6', 8:'lg:col-span-8', 12:'lg:col-span-12' };
 
-function getResponsiveClasses(ui: any): string {
-  const r = ui?.responsive;
+function getResponsiveClasses(_ui: any): string {
+  // Kept for badge display only — actual layout uses inline style
+  return '';
+}
+
+function getGridStyle(ui: any): React.CSSProperties {
+  const r = (ui as any)?.responsive;
+  // We always use gridColumn inline style — Tailwind purges dynamic col-span-N from objects
   const lg = r?.lg ?? ui?.gridColumn ?? 12;
-  const md = r?.md ?? lg;
-  const sm = r?.sm ?? 12;
-  return [SPAN[sm] ?? 'col-span-12', MD[md] ?? 'md:col-span-12', LG[lg] ?? 'lg:col-span-12'].join(' ');
+  return { gridColumn: `span ${lg}` };
 }
 
 export default function ComponentCanvas({
@@ -186,12 +190,13 @@ export default function ComponentCanvas({
   const renderComponentPreview = (component: ComponentSchema) => {
     const isSelected = selectedComponent?.id === component.id;
     const responsiveClasses = getResponsiveClasses(component.ui);
+    const gridStyle = getGridStyle(component.ui);
 
     return (
       <div
         key={component.id}
+        style={gridStyle}
         className={cn(
-          responsiveClasses,
           'transition-all',
           dragOverIndex === schema.components.indexOf(component) && 'border-2 border-primary'
         )}

@@ -180,6 +180,12 @@ function buildUpdatePayload(
       responsive: (c.ui as any)?.responsive ?? { sm: 12, md: c.ui?.gridColumn ?? 12, lg: c.ui?.gridColumn ?? 12 },
     };
 
+    // Button-specific fields
+    if (c.type === 'button' || (c as any).dataType === 'button') {
+      if ((c.ui as any)?.variant) field.variant = (c.ui as any).variant;
+      if ((c.ui as any)?.size)    field.size    = (c.ui as any).size;
+    }
+
     if (c.ui?.required)    field.required    = true;
     if (c.ui?.placeholder) field.placeholder = c.ui.placeholder;
 
@@ -380,6 +386,9 @@ export default function EnhancedComponentBuilder({ formId, stepKey, stepName, on
     for (const c of schema.components as any[]) {
       const ds = (c as any).dataSource;
       if (!ds) continue;
+
+      // Buttons use data_source for submit API — no response mapping needed
+      if (c.type === 'button') continue;
 
       if (!ds.source_key) {
         dataSourceErrors.push(`"${c.label}": no source API selected`);

@@ -1159,10 +1159,8 @@ export default function PropertiesPanel({
                 const currentR = (component.ui as any).responsive ?? { sm: 12, md: component.ui.gridColumn ?? 12, lg: component.ui.gridColumn ?? 12 }
                 return (
                   <div key={bp} className="space-y-1">
-                    {/* <p className="text-[10px] text-muted-foreground text-center"> */}
                     <p className="text-[10px] text-muted-foreground">
                       {icons[bp]} {labels[bp]}
-                      {/* {icons[bp]} {labels[bp]} */}
                     </p>
                     <Select
                       value={String(currentR[bp] ?? 12)}
@@ -1655,7 +1653,7 @@ export default function PropertiesPanel({
                       When should this data source be called?
                     </p>
                     <Select
-                      value={dataSource.trigger || "onChange"}
+                      value={dataSource.trigger || (component.type === "button" ? "onClick" : "onChange")}
                       onValueChange={(value) =>
                         updateDataSource({ trigger: value })
                       }
@@ -1664,15 +1662,20 @@ export default function PropertiesPanel({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="onChange">
-                          On Field Value Change
-                        </SelectItem>
-                        <SelectItem value="onLoad">On Page Load</SelectItem>
+                        {component.type === "button" ? (
+                          <SelectItem value="onClick">On Click</SelectItem>
+                        ) : (
+                          <>
+                            <SelectItem value="onChange">On Field Value Change</SelectItem>
+                            <SelectItem value="onLoad">On Page Load</SelectItem>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* ── Response Mapping ──────────────────────────── */}
+                  {/* ── Response Mapping — not needed for buttons ── */}
+                  {component.type !== "button" && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1747,6 +1750,7 @@ export default function PropertiesPanel({
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               )
               })()}
