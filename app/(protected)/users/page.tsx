@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Loader2, Check, Search, AlertCircle, RefreshCw, ChevronRight, Send, X, CalendarRange,
+  Loader2, Check, Search, AlertCircle, RefreshCw, Send, X, CalendarRange,
 } from "lucide-react";
 import { Input }   from "@/components/ui/input";
 import { Label }   from "@/components/ui/label";
@@ -16,8 +16,8 @@ import { cn } from "@/lib/utils";
 
 // ─── API config ───────────────────────────────────────────────────────────────
 
-const BASE_URL =process.env.NEXT_PUBLIC_API_BASE_URL || "http://192.168.6.6/www8/2013-Backend/api/v1";
-const HEADERS: Record<string, string> = { 
+const BASE_URL = "http://192.168.6.6/www8/2013-Backend/api/v1";
+const HEADERS: Record<string, string> = {
   "Content-Type": "application/json",
   "X-tenant-code": "demo",
 };
@@ -39,8 +39,9 @@ interface DataSource {
   type: "api" | "database";
   method: string;
   trigger: string;
-  endpoint: string;
-  response_mapping: Record<string, string>;
+  endpoint?: string;
+  source_key?: string;                      // identifier for the backend data source
+  response_mapping?: Record<string, string>;
 }
 
 interface FieldAction {
@@ -61,25 +62,24 @@ interface FieldOption {
 }
 
 interface ResponsiveWidth {
-  sm?: number;  // < 640px  → col-span-N
-  md?: number;  // ≥ 768px  → md:col-span-N
-  lg?: number;  // ≥ 1024px → lg:col-span-N
-}
-
-interface ButtonFieldConfig {
-  variant?: "default" | "outline" | "secondary" | "destructive" | "ghost" | "link";
-  action?: "submit" | "reset" | "custom";
-  label?: string;  // overrides field.label when set
+  sm?: number;  // mobile-first base  → col-span-N
+  md?: number;  // ≥ 768px            → md:col-span-N
+  lg?: number;  // ≥ 1024px           → lg:col-span-N  (== grid_width)
 }
 
 interface FieldDef {
   key: string;
-  type: "text" | "number" | "decimal" | "date" | "boolean" | "select" |
-        "radio" | "checkbox" | "file" | "button" | "textarea" | string;
+  type:
+    | "text" | "number" | "decimal" | "date" | "boolean"
+    | "select" | "radio" | "checkbox" | "file"
+    | "button" | "textarea" | string;
   label: string;
+  // layout
   width?: string;
   grid_width?: number;
   responsive?: ResponsiveWidth;
+  size?: "sm" | "md" | "lg" | "default" | "icon"; // shadcn Button size
+  // behaviour
   required?: boolean;
   placeholder?: string;
   help_text?: string;
@@ -89,10 +89,12 @@ interface FieldDef {
   options?: FieldOption[];
   ui?: { visible?: boolean; editable?: boolean };
   actions?: FieldAction[];
+  // type-specific flags
   multi_select?: boolean;
   multi_upload?: boolean;
   date_range?: boolean;
-  button?: ButtonFieldConfig;
+  // button-level overrides (variant / label already on top-level; kept for back-compat)
+  variant?: "default" | "outline" | "secondary" | "destructive" | "ghost" | "link";
 }
 
 interface SubStep {
@@ -121,52 +123,42 @@ interface StepData {
 
 function parseWidth(field: FieldDef): number {
   if (field.width) {
-    const parts = field.width.split("/");
-    const n = parseInt(parts[0], 10);
+    const n = parseInt(field.width.split("/")[0], 10);
     if (!isNaN(n) && n >= 1 && n <= 12) return n;
   }
-  if (field.grid_width && field.grid_width >= 1 && field.grid_width <= 12) {
+  if (field.grid_width && field.grid_width >= 1 && field.grid_width <= 12)
     return field.grid_width;
-  }
   return 12;
 }
 
-// Tailwind needs full class names — no dynamic string building
+// Tailwind requires full static class names — no dynamic interpolation
 const SM_SPAN: Record<number, string> = {
-  1:"col-span-1",   2:"col-span-2",   3:"col-span-3",
-  4:"col-span-4",   5:"col-span-5",   6:"col-span-6",
-  7:"col-span-7",   8:"col-span-8",   9:"col-span-9",
-  10:"col-span-10", 11:"col-span-11", 12:"col-span-12",
+  1:"col-span-1",2:"col-span-2",3:"col-span-3",4:"col-span-4",
+  5:"col-span-5",6:"col-span-6",7:"col-span-7",8:"col-span-8",
+  9:"col-span-9",10:"col-span-10",11:"col-span-11",12:"col-span-12",
 };
 const MD_SPAN: Record<number, string> = {
-  1:"md:col-span-1",   2:"md:col-span-2",   3:"md:col-span-3",
-  4:"md:col-span-4",   5:"md:col-span-5",   6:"md:col-span-6",
-  7:"md:col-span-7",   8:"md:col-span-8",   9:"md:col-span-9",
-  10:"md:col-span-10", 11:"md:col-span-11", 12:"md:col-span-12",
+  1:"md:col-span-1",2:"md:col-span-2",3:"md:col-span-3",4:"md:col-span-4",
+  5:"md:col-span-5",6:"md:col-span-6",7:"md:col-span-7",8:"md:col-span-8",
+  9:"md:col-span-9",10:"md:col-span-10",11:"md:col-span-11",12:"md:col-span-12",
 };
 const LG_SPAN: Record<number, string> = {
-  1:"lg:col-span-1",   2:"lg:col-span-2",   3:"lg:col-span-3",
-  4:"lg:col-span-4",   5:"lg:col-span-5",   6:"lg:col-span-6",
-  7:"lg:col-span-7",   8:"lg:col-span-8",   9:"lg:col-span-9",
-  10:"lg:col-span-10", 11:"lg:col-span-11", 12:"lg:col-span-12",
+  1:"lg:col-span-1",2:"lg:col-span-2",3:"lg:col-span-3",4:"lg:col-span-4",
+  5:"lg:col-span-5",6:"lg:col-span-6",7:"lg:col-span-7",8:"lg:col-span-8",
+  9:"lg:col-span-9",10:"lg:col-span-10",11:"lg:col-span-11",12:"lg:col-span-12",
 };
 
-// grid_width == lg (fallback). responsive.sm = mobile-first base span.
-// Classes emitted: col-span-{sm} md:col-span-{md} lg:col-span-{lg}
+// grid_width == lg per spec; sm defaults to 12 (full width on mobile)
 function colSpan(field: FieldDef): string {
-  const r = field.responsive;
-  const lg = r?.lg ?? parseWidth(field);          // lg = grid_width by spec
-  const md = r?.md ?? lg;                         // md falls back to lg
-  const sm = r?.sm ?? 12;                         // sm defaults to full width on mobile
-
-  const classes: string[] = [];
-  classes.push(SM_SPAN[sm]  ?? "col-span-12");
-  if (md !== sm) classes.push(MD_SPAN[md] ?? "md:col-span-12");
-  if (lg !== md) classes.push(LG_SPAN[lg] ?? "lg:col-span-12");
-  // When md == lg, a single md: prefix is enough — lg inherits it
-  else if (md !== sm) classes.push(LG_SPAN[lg] ?? "lg:col-span-12");
-
-  return classes.join(" ");
+  const r   = field.responsive;
+  const lg  = r?.lg ?? parseWidth(field);
+  const md  = r?.md ?? lg;
+  const sm  = r?.sm ?? 12;
+  const cls: string[] = [SM_SPAN[sm] ?? "col-span-12"];
+  if (md !== sm)  cls.push(MD_SPAN[md]  ?? "md:col-span-12");
+  if (lg !== md)  cls.push(LG_SPAN[lg]  ?? "lg:col-span-12");
+  else if (md !== sm) cls.push(LG_SPAN[lg] ?? "lg:col-span-12");
+  return cls.join(" ");
 }
 
 const optVal = (o: FieldOption) => o.value ?? o.key ?? o.label;
@@ -181,70 +173,54 @@ function isFieldVisible(
   if (hiddenByAction.has(field.key)) return false;
   if (!field.actions?.length) return true;
   const conditionals = field.actions.filter((a) => a.type === "conditional");
-  if (conditionals.length === 0) return true;
+  if (!conditionals.length) return true;
   return conditionals.some((a) => {
-    const controlling = values[a.field!];
-    return a.operator === "not_equals"
-      ? controlling !== a.value
-      : controlling === a.value;
+    const ctrl = values[a.field!];
+    return a.operator === "not_equals" ? ctrl !== a.value : ctrl === a.value;
   });
 }
 
-function buildHiddenByAction(
-  fields: FieldDef[],
-  values: Record<string, any>
-): Set<string> {
+function buildHiddenByAction(fields: FieldDef[], values: Record<string, any>): Set<string> {
   const hidden = new Set<string>();
   for (const field of fields) {
     for (const action of field.actions ?? []) {
       if (action.type !== "toggle_visibility" || !action.target) continue;
-      const fieldVal = values[field.key];
-      const condMet = String(fieldVal ?? "") === String(action.condition_value ?? "");
-      if (action.visibility === "show" && !condMet) {
+      const condMet = String(values[field.key] ?? "") === String(action.condition_value ?? "");
+      if (action.visibility === "show" && !condMet)
         action.target.forEach((t) => hidden.add(t));
-      } else if (action.visibility === "hide" && condMet) {
+      else if (action.visibility === "hide" && condMet)
         action.target.forEach((t) => hidden.add(t));
-      }
     }
   }
   return hidden;
 }
 
 // ─── Multi-Select ─────────────────────────────────────────────────────────────
-// value is string[] for multi, string for single
 
 function MultiSelectField({
   field, value, onChange, disabled, error,
 }: {
-  field: FieldDef;
-  value: string[];
+  field: FieldDef; value: string[];
   onChange: (v: string[]) => void;
-  disabled: boolean;
-  error?: string;
+  disabled: boolean; error?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  // Dropdown position recalculated on open
+  const [open, setOpen]         = useState(false);
+  const triggerRef              = useRef<HTMLDivElement>(null);
+  const dropdownRef             = useRef<HTMLDivElement>(null);
   const [dropStyle, setDropStyle] = useState<React.CSSProperties>({});
-  const selected: string[] = Array.isArray(value) ? value : [];
+  const selected: string[]      = Array.isArray(value) ? value : [];
 
-  // Measure trigger and position dropdown with fixed coords
   const recalc = useCallback(() => {
     if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const dropH = 220; // max-h approx
-    const openAbove = spaceBelow < dropH && spaceAbove > spaceBelow;
+    const r = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const openAbove  = spaceBelow < 220 && r.top > spaceBelow;
     setDropStyle({
       position: "fixed",
-      left: rect.left,
-      width: rect.width,
+      left: r.left,
+      width: r.width,
       zIndex: 9999,
-      ...(openAbove
-        ? { bottom: window.innerHeight - rect.top + 4 }
-        : { top: rect.bottom + 4 }),
+      ...(openAbove ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }),
     });
   }, []);
 
@@ -254,47 +230,36 @@ function MultiSelectField({
     setOpen((o) => !o);
   };
 
-  // Close on outside click (trigger + dropdown both checked)
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        triggerRef.current?.contains(e.target as Node) ||
-        dropdownRef.current?.contains(e.target as Node)
-      ) return;
+    const h = (e: MouseEvent) => {
+      if (triggerRef.current?.contains(e.target as Node)) return;
+      if (dropdownRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  // Reposition on scroll/resize while open
   useEffect(() => {
     if (!open) return;
-    const update = () => recalc();
-    window.addEventListener("scroll", update, true);
-    window.addEventListener("resize", update);
-    return () => {
-      window.removeEventListener("scroll", update, true);
-      window.removeEventListener("resize", update);
-    };
+    const u = () => recalc();
+    window.addEventListener("scroll", u, true);
+    window.addEventListener("resize", u);
+    return () => { window.removeEventListener("scroll", u, true); window.removeEventListener("resize", u); };
   }, [open, recalc]);
 
-  const toggle = (v: string) => {
-    const next = selected.includes(v) ? selected.filter((s) => s !== v) : [...selected, v];
-    onChange(next);
-  };
+  const toggle = (v: string) =>
+    onChange(selected.includes(v) ? selected.filter((s) => s !== v) : [...selected, v]);
 
   const removeItem = (v: string, e: React.MouseEvent) => {
     e.stopPropagation();
     onChange(selected.filter((s) => s !== v));
   };
 
-  const labelFor = (v: string) =>
-    field.options?.find((o) => optVal(o) === v)?.label ?? v;
+  const labelFor = (v: string) => field.options?.find((o) => optVal(o) === v)?.label ?? v;
 
   return (
     <>
-      {/* Trigger */}
       <div
         ref={triggerRef}
         role="button"
@@ -308,79 +273,43 @@ function MultiSelectField({
           open && "ring-2 ring-ring ring-offset-2"
         )}
       >
-        {selected.length === 0 ? (
-          <span className="text-muted-foreground text-sm">
-            {field.placeholder ?? `Select ${field.label.toLowerCase()}…`}
-          </span>
-        ) : (
-          selected.map((v) => (
-            <span
-              key={v}
-              className="inline-flex items-center gap-1 rounded-md bg-secondary text-secondary-foreground px-1.5 py-0.5 text-xs font-medium"
-            >
-              {labelFor(v)}
-              {!disabled && (
-                <button
-                  type="button"
-                  onClick={(e) => removeItem(v, e)}
-                  className="rounded-sm hover:bg-destructive/20 transition-colors p-0.5"
-                  tabIndex={-1}
-                >
-                  <X className="size-2.5" />
-                </button>
-              )}
-            </span>
-          ))
-        )}
+        {selected.length === 0
+          ? <span className="text-muted-foreground text-sm">{field.placeholder ?? `Select ${field.label.toLowerCase()}…`}</span>
+          : selected.map((v) => (
+              <span key={v} className="inline-flex items-center gap-1 rounded-md bg-secondary text-secondary-foreground px-1.5 py-0.5 text-xs font-medium">
+                {labelFor(v)}
+                {!disabled && (
+                  <button type="button" onClick={(e) => removeItem(v, e)} className="rounded-sm hover:bg-destructive/20 p-0.5" tabIndex={-1}>
+                    <X className="size-2.5" />
+                  </button>
+                )}
+              </span>
+            ))
+        }
         <span className="ml-auto pl-1 text-muted-foreground/60 text-xs">▾</span>
       </div>
 
-      {/* Dropdown — rendered via fixed positioning, never clipped */}
       {open && !disabled && (
-        <div
-          ref={dropdownRef}
-          style={dropStyle}
-          className="rounded-md border border-border bg-popover shadow-lg overflow-hidden"
-        >
+        <div ref={dropdownRef} style={dropStyle} className="rounded-md border border-border bg-popover shadow-lg overflow-hidden">
           <div className="max-h-52 overflow-y-auto py-1">
-            {field.options?.length ? (
-              field.options.map((opt) => {
-                const v = optVal(opt);
-                const checked = selected.includes(v);
-                return (
-                  <div
-                    key={v}
-                    role="option"
-                    aria-selected={checked}
-                    onClick={() => toggle(v)}
-                    className={cn(
-                      "flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors",
-                      checked && "bg-accent/50"
-                    )}
-                  >
-                    <div className={cn(
-                      "flex items-center justify-center w-4 h-4 rounded border border-input shrink-0 transition-colors",
-                      checked && "bg-primary border-primary"
-                    )}>
-                      {checked && <Check className="size-2.5 text-primary-foreground" />}
-                    </div>
-                    <span>{opt.label}</span>
+            {field.options?.length ? field.options.map((opt) => {
+              const v = optVal(opt);
+              const checked = selected.includes(v);
+              return (
+                <div key={v} role="option" aria-selected={checked} onClick={() => toggle(v)}
+                  className={cn("flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-accent transition-colors", checked && "bg-accent/50")}
+                >
+                  <div className={cn("flex items-center justify-center w-4 h-4 rounded border border-input shrink-0 transition-colors", checked && "bg-primary border-primary")}>
+                    {checked && <Check className="size-2.5 text-primary-foreground" />}
                   </div>
-                );
-              })
-            ) : (
-              <div className="px-3 py-2 text-xs text-muted-foreground">No options available</div>
-            )}
+                  <span>{opt.label}</span>
+                </div>
+              );
+            }) : <div className="px-3 py-2 text-xs text-muted-foreground">No options available</div>}
           </div>
           {selected.length > 0 && (
             <div className="border-t border-border px-3 py-1.5">
-              <button
-                type="button"
-                onClick={() => onChange([])}
-                className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-              >
-                Clear all
-              </button>
+              <button type="button" onClick={() => onChange([])} className="text-xs text-muted-foreground hover:text-destructive transition-colors">Clear all</button>
             </div>
           )}
         </div>
@@ -389,118 +318,110 @@ function MultiSelectField({
   );
 }
 
-// ─── Date Range Field ─────────────────────────────────────────────────────────
-// value is { start?: string; end?: string }
+// ─── Checkbox group (when field has options) ──────────────────────────────────
+// value is string[] of selected option values
 
-function DateRangeField({
+function CheckboxGroupField({
   field, value, onChange, disabled, error,
 }: {
-  field: FieldDef;
-  value: { start?: string; end?: string } | undefined;
-  onChange: (v: { start?: string; end?: string }) => void;
-  disabled: boolean;
-  error?: string;
+  field: FieldDef; value: string[];
+  onChange: (v: string[]) => void;
+  disabled: boolean; error?: string;
 }) {
-  const current = value ?? {};
+  const selected: string[] = Array.isArray(value) ? value : [];
+
+  const toggle = (v: string) =>
+    onChange(selected.includes(v) ? selected.filter((s) => s !== v) : [...selected, v]);
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 relative">
-        <Input
-          type="date"
-          disabled={disabled}
-          value={current.start ?? ""}
-          max={current.end || undefined}
-          onChange={(e) => onChange({ ...current, start: e.target.value })}
-          className={cn(error && "border-destructive")}
-          placeholder="Start date"
-        />
-      </div>
-      <div className="flex items-center justify-center w-6 shrink-0">
-        <CalendarRange className="size-3.5 text-muted-foreground/50" />
-      </div>
-      <div className="flex-1">
-        <Input
-          type="date"
-          disabled={disabled}
-          value={current.end ?? ""}
-          min={current.start || undefined}
-          onChange={(e) => onChange({ ...current, end: e.target.value })}
-          className={cn(error && "border-destructive")}
-          placeholder="End date"
-        />
-      </div>
+    <div className={cn("flex flex-wrap gap-x-5 gap-y-2 pt-0.5", error && "")}>
+      {field.options!.map((opt) => {
+        const v   = optVal(opt);
+        const id  = `${field.key}__${v}`;
+        const on  = selected.includes(v);
+        return (
+          <label key={v} htmlFor={id} className={cn("flex items-center gap-2 cursor-pointer select-none", disabled && "cursor-not-allowed opacity-60")}>
+            <div
+              onClick={() => !disabled && toggle(v)}
+              className={cn(
+                "flex items-center justify-center w-4 h-4 rounded border transition-colors shrink-0",
+                on ? "bg-primary border-primary" : "border-input bg-background",
+                disabled && "pointer-events-none"
+              )}
+            >
+              {on && <Check className="size-2.5 text-primary-foreground" />}
+            </div>
+            <input id={id} type="checkbox" checked={on} disabled={disabled} onChange={() => toggle(v)} className="sr-only" />
+            <span className="text-xs">{opt.label}</span>
+          </label>
+        );
+      })}
     </div>
   );
 }
 
-// ─── Multi-Upload Field ───────────────────────────────────────────────────────
-// value is File[] for multi, File | null for single
+// ─── Date Range ───────────────────────────────────────────────────────────────
+
+function DateRangeField({
+  field, value, onChange, disabled, error,
+}: {
+  field: FieldDef; value: { start?: string; end?: string } | undefined;
+  onChange: (v: { start?: string; end?: string }) => void;
+  disabled: boolean; error?: string;
+}) {
+  const c = value ?? {};
+  return (
+    <div className="flex items-center gap-2">
+      <Input type="date" disabled={disabled} value={c.start ?? ""} max={c.end || undefined}
+        onChange={(e) => onChange({ ...c, start: e.target.value })}
+        className={cn("flex-1", error && "border-destructive")} />
+      <CalendarRange className="size-3.5 text-muted-foreground/50 shrink-0" />
+      <Input type="date" disabled={disabled} value={c.end ?? ""} min={c.start || undefined}
+        onChange={(e) => onChange({ ...c, end: e.target.value })}
+        className={cn("flex-1", error && "border-destructive")} />
+    </div>
+  );
+}
+
+// ─── Multi-Upload ─────────────────────────────────────────────────────────────
 
 function MultiUploadField({
   field, value, onChange, disabled, error,
 }: {
-  field: FieldDef;
-  value: File[];
+  field: FieldDef; value: File[];
   onChange: (v: File[]) => void;
-  disabled: boolean;
-  error?: string;
+  disabled: boolean; error?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleFiles = (files: FileList | null) => {
-    if (!files) return;
-    const incoming = Array.from(files);
-    onChange([...value, ...incoming]);
+  const add = (files: FileList | null) => {
+    if (files) onChange([...value, ...Array.from(files)]);
   };
-
-  const removeFile = (idx: number) => onChange(value.filter((_, i) => i !== idx));
-
   return (
     <div className="space-y-2">
       <div
+        onClick={() => !disabled && inputRef.current?.click()}
         className={cn(
           "flex items-center gap-2 h-9 px-3 border rounded-md text-sm text-muted-foreground",
           disabled ? "bg-muted/50" : "bg-background cursor-pointer hover:bg-accent/30 transition-colors",
           error && "border-destructive"
         )}
-        onClick={() => !disabled && inputRef.current?.click()}
       >
         <span className="text-xs flex-1 truncate text-muted-foreground/70">
-          {value.length === 0
-            ? "No files chosen"
-            : `${value.length} file${value.length !== 1 ? "s" : ""} selected`}
+          {value.length === 0 ? "No files chosen" : `${value.length} file${value.length !== 1 ? "s" : ""} selected`}
         </span>
-        {!disabled && (
-          <span className="text-xs text-primary hover:underline shrink-0">Browse</span>
-        )}
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          className="hidden"
-          disabled={disabled}
-          onChange={(e) => handleFiles(e.target.files)}
-          // Reset input so same file can be re-added after removal
-          onClick={(e) => ((e.target as HTMLInputElement).value = "")}
-        />
+        {!disabled && <span className="text-xs text-primary hover:underline shrink-0">Browse</span>}
+        <input ref={inputRef} type="file" multiple className="hidden" disabled={disabled}
+          onChange={(e) => add(e.target.files)}
+          onClick={(e) => ((e.target as HTMLInputElement).value = "")} />
       </div>
-
-      {/* File chips */}
       {value.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {value.map((file, idx) => (
-            <span
-              key={idx}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs text-foreground"
-            >
+            <span key={idx} className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs text-foreground">
               <span className="max-w-[140px] truncate">{file.name}</span>
               {!disabled && (
-                <button
-                  type="button"
-                  onClick={() => removeFile(idx)}
-                  className="rounded-sm text-muted-foreground hover:text-destructive transition-colors ml-0.5"
-                >
+                <button type="button" onClick={() => onChange(value.filter((_, i) => i !== idx))}
+                  className="rounded-sm text-muted-foreground hover:text-destructive ml-0.5">
                   <X className="size-2.5" />
                 </button>
               )}
@@ -512,7 +433,7 @@ function MultiUploadField({
   );
 }
 
-// ─── DataSource field ─────────────────────────────────────────────────────────
+// ─── DataSource lookup field (text with auto-fetch) ───────────────────────────
 
 function DataSourceField({
   field, value, onChange, onAutoFill, disabled, error,
@@ -538,23 +459,19 @@ function DataSourceField({
       const res = await fetch(`${BASE_URL}/${ds.endpoint}`, {
         method: ds.method.toUpperCase(),
         headers: HEADERS,
-        body: ds.method.toUpperCase() === "POST"
-          ? JSON.stringify({ [field.key]: val })
-          : undefined,
+        body: ds.method.toUpperCase() === "POST" ? JSON.stringify({ [field.key]: val }) : undefined,
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.message ?? "Lookup failed");
       const result: Record<string, string> = {};
-      for (const [src, tgt] of Object.entries(ds.response_mapping))
+      for (const [src, tgt] of Object.entries(ds.response_mapping ?? {}))
         result[tgt] = String(data.data[0]?.[src] ?? "");
       onAutoFill(result);
       setFilled(true);
     } catch (e) {
       setFetchErr(e instanceof Error ? e.message : "Lookup failed");
       setFilled(false);
-    } finally {
-      setFetching(false);
-    }
+    } finally { setFetching(false); }
   }, [ds, field.key]);
 
   const handleChange = (v: string) => {
@@ -567,18 +484,10 @@ function DataSourceField({
   return (
     <div className="space-y-1">
       <div className="relative">
-        <Input
-          value={value ?? ""}
-          onChange={(e) => handleChange(e.target.value)}
-          disabled={disabled}
+        <Input value={value ?? ""} onChange={(e) => handleChange(e.target.value)} disabled={disabled}
           placeholder={field.placeholder ?? `Enter ${field.label.toLowerCase()}`}
           maxLength={field.validation?.max_length}
-          className={cn(
-            "pr-9",
-            error && "border-destructive",
-            filled && "border-green-500 focus-visible:ring-green-500"
-          )}
-        />
+          className={cn("pr-9", error && "border-destructive", filled && "border-green-500 focus-visible:ring-green-500")} />
         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
           {fetching ? <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
           : filled   ? <Check   className="size-3.5 text-green-500" />
@@ -586,9 +495,96 @@ function DataSourceField({
         </div>
       </div>
       {fetchErr && <p className="text-xs text-destructive">{fetchErr}</p>}
-      {filled   && (
-        <p className="text-xs text-green-600 flex items-center gap-1">
-          <Check className="size-3 shrink-0" /> Details fetched
+      {filled && <p className="text-xs text-green-600 flex items-center gap-1"><Check className="size-3 shrink-0" /> Details fetched</p>}
+    </div>
+  );
+}
+
+// ─── Button field ─────────────────────────────────────────────────────────────
+// Clicking always:
+//   1. asks the parent to validate (onValidate → returns errors or null)
+//   2. if clean, POSTs to data_source.endpoint with the full form payload
+//   3. if no data_source, falls back to onAction("submit") for parent to handle
+
+function ButtonField({
+  field, disabled, onValidateAndGetPayload, onAction,
+}: {
+  field: FieldDef;
+  disabled: boolean;
+  /** Parent runs validation; returns the payload if valid, or null if there are errors */
+  onValidateAndGetPayload: () => Record<string, any> | null;
+  onAction?: (action: string) => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus]         = useState<"idle" | "success" | "error">("idle");
+  const [errMsg, setErrMsg]         = useState("");
+
+  const ds      = field.data_source;
+  const variant = (field.variant ?? "default") as any;
+  const size    = (field.size    ?? "default") as any;
+
+  const handleClick = async () => {
+    if (disabled || submitting) return;
+    setStatus("idle"); setErrMsg("");
+
+    // Always validate first
+    const payload = onValidateAndGetPayload();
+    if (payload === null) return; // validation failed — errors shown in form
+
+    // If button has a data_source with an endpoint, POST directly
+    if (ds?.endpoint) {
+      setSubmitting(true);
+      try {
+        const url    = `${BASE_URL}/${ds.endpoint.replace(/^\//, "")}`;
+        const method = (ds.method ?? "POST").toUpperCase();
+        const res    = await fetch(url, {
+          method,
+          headers: HEADERS,
+          body: method !== "GET" ? JSON.stringify(payload) : undefined,
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message ?? "Submission failed");
+        setStatus("success");
+        onAction?.("submit_success");
+      } catch (e) {
+        setErrMsg(e instanceof Error ? e.message : "Submission failed");
+        setStatus("error");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    // No endpoint — parent handles the actual submission
+    onAction?.("submit");
+  };
+
+  return (
+    <div className="space-y-1">
+      <Button
+        type="button"
+        variant={variant}
+        size={size}
+        disabled={disabled || submitting}
+        className="w-full"
+        onClick={handleClick}
+      >
+        {submitting ? (
+          <><Loader2 className="size-3.5 mr-1.5 animate-spin" />Submitting…</>
+        ) : status === "success" ? (
+          <><Check className="size-3.5 mr-1.5" />Submitted</>
+        ) : (
+          <><Send className="size-3.5 mr-1.5" />{field.label}</>
+        )}
+      </Button>
+      {status === "error" && errMsg && (
+        <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+          <AlertCircle className="size-3 shrink-0" />{errMsg}
+        </p>
+      )}
+      {status === "success" && (
+        <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+          <Check className="size-3 shrink-0" />Submitted successfully
         </p>
       )}
     </div>
@@ -598,27 +594,39 @@ function DataSourceField({
 // ─── Single field renderer ────────────────────────────────────────────────────
 
 function FieldInput({
-  field, value, onChange, onAutoFill, onAction, error,
+  field, value, onChange, onAutoFill, onAction, onValidateAndGetPayload, error,
 }: {
   field: FieldDef; value: any;
   onChange: (key: string, val: any) => void;
   onAutoFill: (key: string, mapping: Record<string, string>) => void;
   onAction?: (action: string) => void;
+  onValidateAndGetPayload: () => Record<string, any> | null;
   error?: string;
 }) {
-  const editable = field.ui?.editable ?? true;
-  const disabled = !editable;
+  const editable    = field.ui?.editable ?? true;
+  const disabled    = !editable;
   const disabledCls = disabled ? "bg-muted/50 cursor-not-allowed" : "";
 
-  if (field.data_source && editable) {
+  // ── button type ───────────────────────────────────────────────────────────
+  if (field.type === "button") {
+    return (
+      <ButtonField
+        field={field}
+        disabled={disabled}
+        onValidateAndGetPayload={onValidateAndGetPayload}
+        onAction={onAction}
+      />
+    );
+  }
+
+  // ── DataSource lookup fields (non-button) ─────────────────────────────────
+  if (field.data_source && field.data_source.endpoint && editable) {
     return (
       <DataSourceField
-        field={field}
-        value={value ?? ""}
+        field={field} value={value ?? ""}
         onChange={(v) => onChange(field.key, v)}
         onAutoFill={(mapping) => onAutoFill(field.key, mapping)}
-        disabled={disabled}
-        error={error}
+        disabled={disabled} error={error}
       />
     );
   }
@@ -627,12 +635,8 @@ function FieldInput({
     case "boolean":
       return (
         <div className="flex items-center gap-2 h-9">
-          <Switch
-            id={field.key}
-            disabled={disabled}
-            checked={!!value}
-            onCheckedChange={(v) => onChange(field.key, v)}
-          />
+          <Switch id={field.key} disabled={disabled} checked={!!value}
+            onCheckedChange={(v) => onChange(field.key, v)} />
           <Label htmlFor={field.key} className="text-xs text-muted-foreground font-normal cursor-pointer">
             {value ? "Yes" : "No"}
           </Label>
@@ -640,19 +644,26 @@ function FieldInput({
       );
 
     case "checkbox":
+      // ── Multi-option checkbox group ────────────────────────────────────
+      if (field.options && field.options.length > 0) {
+        return (
+          <CheckboxGroupField
+            field={field}
+            value={Array.isArray(value) ? value : value ? [value] : []}
+            onChange={(v) => onChange(field.key, v)}
+            disabled={disabled}
+            error={error}
+          />
+        );
+      }
+      // ── Single boolean checkbox (no options) ───────────────────────────
       return (
         <div className="flex items-center gap-2 h-9">
-          <input
-            id={field.key}
-            type="checkbox"
-            disabled={disabled}
+          <input id={field.key} type="checkbox" disabled={disabled}
             checked={!!value}
             onChange={(e) => onChange(field.key, e.target.checked ? "1" : "0")}
-            className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
-          />
-          <Label htmlFor={field.key} className="text-xs font-normal cursor-pointer">
-            {field.label}
-          </Label>
+            className="h-4 w-4 rounded border-border accent-primary cursor-pointer" />
+          <Label htmlFor={field.key} className="text-xs font-normal cursor-pointer">{field.label}</Label>
         </div>
       );
 
@@ -663,15 +674,9 @@ function FieldInput({
             const v = optVal(opt);
             return (
               <label key={v} className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name={field.key}
-                  value={v}
-                  disabled={disabled}
-                  checked={value === v}
-                  onChange={() => onChange(field.key, v)}
-                  className="h-3.5 w-3.5 accent-primary"
-                />
+                <input type="radio" name={field.key} value={v} disabled={disabled}
+                  checked={value === v} onChange={() => onChange(field.key, v)}
+                  className="h-3.5 w-3.5 accent-primary" />
                 <span className="text-xs">{opt.label}</span>
               </label>
             );
@@ -680,35 +685,25 @@ function FieldInput({
       );
 
     case "select":
-      // ── FIXED: branch on multi_select ──────────────────────────────────
       if (field.multi_select) {
         return (
-          <MultiSelectField
-            field={field}
+          <MultiSelectField field={field}
             value={Array.isArray(value) ? value : value ? [value] : []}
             onChange={(v) => onChange(field.key, v)}
-            disabled={disabled}
-            error={error}
-          />
+            disabled={disabled} error={error} />
         );
       }
       return (
-        <Select
-          value={value || ""}
-          onValueChange={(v) => onChange(field.key, v)}
-          disabled={disabled}
-        >
+        <Select value={value || ""} onValueChange={(v) => onChange(field.key, v)} disabled={disabled}>
           <SelectTrigger className={cn("w-full", disabledCls, error && "border-destructive")}>
             <SelectValue placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}…`} />
           </SelectTrigger>
           <SelectContent>
-            {field.options?.length ? (
-              field.options.map((opt) => (
-                <SelectItem key={optVal(opt)} value={optVal(opt)}>{opt.label}</SelectItem>
-              ))
-            ) : (
-              <SelectItem value="__empty" disabled>No options available</SelectItem>
-            )}
+            {field.options?.length
+              ? field.options.map((opt) => (
+                  <SelectItem key={optVal(opt)} value={optVal(opt)}>{opt.label}</SelectItem>
+                ))
+              : <SelectItem value="__empty" disabled>No options available</SelectItem>}
           </SelectContent>
         </Select>
       );
@@ -716,56 +711,37 @@ function FieldInput({
     case "number":
     case "decimal":
       return (
-        <Input
-          type="number"
-          id={field.key}
+        <Input type="number" id={field.key}
           step={field.type === "decimal" ? "0.01" : "1"}
-          disabled={disabled}
-          placeholder={field.placeholder}
-          // ── FIXED: wire min/max from validation ───────────────────────
-          min={field.validation?.min_value}
-          max={field.validation?.max_value}
+          disabled={disabled} placeholder={field.placeholder}
+          min={field.validation?.min_value} max={field.validation?.max_value}
           className={cn(disabledCls, error && "border-destructive")}
           value={value ?? ""}
-          onChange={(e) => onChange(field.key, e.target.value)}
-        />
+          onChange={(e) => onChange(field.key, e.target.value)} />
       );
 
     case "date":
-      // ── FIXED: branch on date_range ────────────────────────────────────
       if (field.date_range) {
         return (
-          <DateRangeField
-            field={field}
-            value={value}
+          <DateRangeField field={field} value={value}
             onChange={(v) => onChange(field.key, v)}
-            disabled={disabled}
-            error={error}
-          />
+            disabled={disabled} error={error} />
         );
       }
       return (
-        <Input
-          type="date"
-          id={field.key}
-          disabled={disabled}
+        <Input type="date" id={field.key} disabled={disabled}
           className={cn(disabledCls, error && "border-destructive")}
           value={value ?? ""}
-          onChange={(e) => onChange(field.key, e.target.value)}
-        />
+          onChange={(e) => onChange(field.key, e.target.value)} />
       );
 
     case "file":
-      // ── FIXED: branch on multi_upload ─────────────────────────────────
       if (field.multi_upload) {
         return (
-          <MultiUploadField
-            field={field}
+          <MultiUploadField field={field}
             value={Array.isArray(value) ? value : value ? [value] : []}
             onChange={(v) => onChange(field.key, v)}
-            disabled={disabled}
-            error={error}
-          />
+            disabled={disabled} error={error} />
         );
       }
       return (
@@ -774,122 +750,79 @@ function FieldInput({
           disabled ? "bg-muted/50" : "bg-background",
           error && "border-destructive"
         )}>
-          <span className="text-xs flex-1 truncate">
-            {value ? (value as File).name : "No file chosen"}
-          </span>
+          <span className="text-xs flex-1 truncate">{value ? (value as File).name : "No file chosen"}</span>
           {!disabled && (
             <label className="cursor-pointer shrink-0">
               <span className="text-xs text-primary hover:underline">Browse</span>
-              <input
-                type="file"
-                className="hidden"
-                onChange={(e) => onChange(field.key, e.target.files?.[0] ?? null)}
-              />
+              <input type="file" className="hidden" onChange={(e) => onChange(field.key, e.target.files?.[0] ?? null)} />
             </label>
           )}
         </div>
       );
 
-    case "button": {
-      const cfg = field.button ?? {};
-      const action = cfg.action ?? "submit";
-      const label  = cfg.label ?? field.label;
-      const variant = cfg.variant ?? "default";
-      return (
-        <Button
-          type="button"
-          variant={variant}
-          disabled={disabled}
-          className="w-full"
-          onClick={() => onAction?.(action)}
-        >
-          {action === "submit" && <Send className="size-3.5 mr-1.5" />}
-          {label}
-        </Button>
-      );
-    }
-
     case "textarea":
       return (
-        <textarea
-          id={field.key}
-          disabled={disabled}
+        <textarea id={field.key} disabled={disabled}
           placeholder={field.placeholder ?? `Enter ${field.label.toLowerCase()}…`}
           className={cn(
             "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none",
-            disabledCls,
-            error && "border-destructive"
+            disabledCls, error && "border-destructive"
           )}
-          maxLength={field.validation?.max_length}
-          rows={4}
+          maxLength={field.validation?.max_length} rows={4}
           value={value ?? ""}
-          onChange={(e) => onChange(field.key, e.target.value)}
-        />
+          onChange={(e) => onChange(field.key, e.target.value)} />
       );
 
     default:
       return (
-        <Input
-          id={field.key}
-          disabled={disabled}
+        <Input id={field.key} disabled={disabled}
           placeholder={field.placeholder ?? `Enter ${field.label.toLowerCase()}…`}
           className={cn(disabledCls, error && "border-destructive")}
-          value={value ?? ""}
-          maxLength={field.validation?.max_length}
-          onChange={(e) => onChange(field.key, e.target.value)}
-        />
+          value={value ?? ""} maxLength={field.validation?.max_length}
+          onChange={(e) => onChange(field.key, e.target.value)} />
       );
   }
 }
 
-// ─── Field wrapper (label + input + validation) ───────────────────────────────
+// ─── Field wrapper (label + input + error) ────────────────────────────────────
 
 function FormField({
-  field, value, onChange, onAutoFill, onAction, errors, errPrefix = "",
+  field, value, onChange, onAutoFill, onAction, onValidateAndGetPayload, errors, errPrefix = "",
 }: {
   field: FieldDef; value: any;
   onChange: (key: string, val: any) => void;
   onAutoFill: (key: string, mapping: Record<string, string>) => void;
   onAction?: (action: string) => void;
+  onValidateAndGetPayload: () => Record<string, any> | null;
   errors: Record<string, string>;
   errPrefix?: string;
 }) {
-  const error     = errors[errPrefix ? `${errPrefix}.${field.key}` : field.key];
-  const isCheckbox = field.type === "checkbox";
-  // button fields: no label wrapper, no error display — they're actions not inputs
+  const errKey     = errPrefix ? `${errPrefix}.${field.key}` : field.key;
+  const error      = errors[errKey];
+  const isCheckbox = field.type === "checkbox" && !(field.options?.length);
   const isButton   = field.type === "button";
 
+  // Buttons: no label wrapper, no error display
   if (isButton) {
     return (
-      <FieldInput
-        field={field}
-        value={value}
-        onChange={onChange}
-        onAutoFill={onAutoFill}
-        onAction={onAction}
-        error={error}
-      />
+      <FieldInput field={field} value={value} onChange={onChange}
+        onAutoFill={onAutoFill} onAction={onAction}
+        onValidateAndGetPayload={onValidateAndGetPayload} error={error} />
     );
   }
 
   return (
     <div className="space-y-1.5">
+      {/* Hide label for single boolean checkbox (rendered inline) */}
       {!isCheckbox && (
         <Label htmlFor={field.key} className="text-xs font-medium leading-none">
           {field.label}
           {field.required && <span className="text-destructive ml-0.5">*</span>}
         </Label>
       )}
-
-      <FieldInput
-        field={field}
-        value={value}
-        onChange={onChange}
-        onAutoFill={onAutoFill}
-        onAction={onAction}
-        error={error}
-      />
-
+      <FieldInput field={field} value={value} onChange={onChange}
+        onAutoFill={onAutoFill} onAction={onAction}
+        onValidateAndGetPayload={onValidateAndGetPayload} error={error} />
       {field.help_text && (
         <p className="text-[10px] text-muted-foreground/60">{field.help_text}</p>
       )}
@@ -902,22 +835,22 @@ function FormField({
   );
 }
 
-// ─── Section (parent or sub-step) form ───────────────────────────────────────
+// ─── Section (parent or sub-step) ────────────────────────────────────────────
 
 function SectionForm({
-  sectionKey, title, fields, sectionValues, errors, onSectionChange, onSectionAutoFill, onAction, showTitle = true,
+  sectionKey, title, fields, sectionValues, errors,
+  onSectionChange, onSectionAutoFill, onAction, onValidateAndGetPayload, showTitle = true,
 }: {
-  sectionKey: string;
-  title: string; fields: FieldDef[];
+  sectionKey: string; title: string; fields: FieldDef[];
   sectionValues: Record<string, any>; errors: Record<string, string>;
   onSectionChange: (section: string, key: string, val: any) => void;
   onSectionAutoFill: (section: string, key: string, mapping: Record<string, string>) => void;
   onAction?: (action: string) => void;
+  onValidateAndGetPayload: () => Record<string, any> | null;
   showTitle?: boolean;
 }) {
   const hiddenByAction = buildHiddenByAction(fields, sectionValues);
   const visible = fields.filter((f) => isFieldVisible(f, sectionValues, hiddenByAction));
-
   if (visible.length === 0 && !showTitle) return null;
 
   return (
@@ -928,38 +861,41 @@ function SectionForm({
         </div>
       )}
       <div className="p-5">
-        {visible.length === 0 ? (
-          <p className="text-xs text-muted-foreground/50 text-center py-4">No fields configured</p>
-        ) : (
-          <div className="grid grid-cols-12 gap-x-4 gap-y-5">
-            {visible.map((field) => (
-              <div key={field.key} className={colSpan(field)}>
-                <FormField
-                  field={field}
-                  value={sectionValues[field.key]}
-                  onChange={(key, val) => onSectionChange(sectionKey, key, val)}
-                  onAutoFill={(key, mapping) => onSectionAutoFill(sectionKey, key, mapping)}
-                  onAction={onAction}
-                  errors={errors}
-                  errPrefix={sectionKey}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+        {visible.length === 0
+          ? <p className="text-xs text-muted-foreground/50 text-center py-4">No fields configured</p>
+          : (
+            <div className="grid grid-cols-12 gap-x-4 gap-y-5">
+              {visible.map((field) => (
+                <div key={field.key} className={colSpan(field)}>
+                  <FormField
+                    field={field}
+                    value={sectionValues[field.key]}
+                    onChange={(key, val) => onSectionChange(sectionKey, key, val)}
+                    onAutoFill={(key, mapping) => onSectionAutoFill(sectionKey, key, mapping)}
+                    onAction={onAction}
+                    onValidateAndGetPayload={onValidateAndGetPayload}
+                    errors={errors}
+                    errPrefix={sectionKey}
+                  />
+                </div>
+              ))}
+            </div>
+          )
+        }
       </div>
     </div>
   );
 }
 
-// ─── Repeatable sub-step form ─────────────────────────────────────────────────
+// ─── Repeatable section ───────────────────────────────────────────────────────
 
 function RepeatableSection({
-  subStep, errors, onRowsChange,
+  subStep, errors, onRowsChange, onAction, onValidateAndGetPayload,
 }: {
-  subStep: SubStep;
-  errors: Record<string, string>;
+  subStep: SubStep; errors: Record<string, string>;
   onRowsChange: (stepKey: string, rows: Record<string, any>[]) => void;
+  onAction?: (action: string) => void;
+  onValidateAndGetPayload: () => Record<string, any> | null;
 }) {
   const fields = subStep.rendered_json?.fields ?? [];
   const [rows, setRows] = useState<Record<string, any>[]>([{}]);
@@ -969,28 +905,17 @@ function RepeatableSection({
     onRowsChange(subStep.step_key, next);
   };
 
-  const handleChange = (rowIdx: number, key: string, val: any) =>
-    updateRows(rows.map((r, i) => (i === rowIdx ? { ...r, [key]: val } : r)));
-
-  const handleAutoFill = (rowIdx: number, _key: string, mapping: Record<string, string>) =>
-    updateRows(rows.map((r, i) => (i === rowIdx ? { ...r, ...mapping } : r)));
-
   const colTemplate = `repeat(${fields.length}, minmax(0,1fr)) 36px`;
 
   return (
     <div className="border border-border rounded-xl overflow-hidden">
       <div className="flex items-center justify-between px-5 py-3 bg-muted/40 border-b border-border">
-        <h4 className="text-xs font-semibold text-foreground">{subStep.step_name}</h4>
-        <button
-          type="button"
-          onClick={() => updateRows([...rows, {}])}
-          className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 transition-colors"
-          title="Add row"
-        >
+        <h4 className="text-xs font-semibold">{subStep.step_name}</h4>
+        <button type="button" onClick={() => updateRows([...rows, {}])}
+          className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 transition-colors">
           <span className="text-white text-base leading-none pb-0.5">+</span>
         </button>
       </div>
-
       <div className="grid gap-3 px-5 pt-4 pb-1" style={{ gridTemplateColumns: colTemplate }}>
         {fields.map((f) => (
           <div key={f.key} className="text-[11px] font-medium text-muted-foreground">
@@ -999,27 +924,21 @@ function RepeatableSection({
         ))}
         <div />
       </div>
-
       <div className="px-5 pb-4 space-y-2">
         {rows.map((rowValues, rowIdx) => (
           <div key={rowIdx} className="grid gap-3 items-start" style={{ gridTemplateColumns: colTemplate }}>
             {fields.map((f) => (
-              <FieldInput
-                key={f.key}
-                field={f}
-                value={rowValues[f.key]}
-                onChange={(key, val) => handleChange(rowIdx, key, val)}
-                onAutoFill={(key, mapping) => handleAutoFill(rowIdx, key, mapping)}
-                error={errors[`${subStep.step_key}[${rowIdx}].${f.key}`]}
-              />
+              <FieldInput key={f.key} field={f} value={rowValues[f.key]}
+                onChange={(key, val) => updateRows(rows.map((r, i) => i === rowIdx ? { ...r, [key]: val } : r))}
+                onAutoFill={(_key, mapping) => updateRows(rows.map((r, i) => i === rowIdx ? { ...r, ...mapping } : r))}
+                onAction={onAction}
+                onValidateAndGetPayload={onValidateAndGetPayload}
+                error={errors[`${subStep.step_key}[${rowIdx}].${f.key}`]} />
             ))}
-            <button
-              type="button"
+            <button type="button"
               onClick={() => rows.length > 1 && updateRows(rows.filter((_, i) => i !== rowIdx))}
               disabled={rows.length <= 1}
-              className="flex items-center justify-center w-8 h-9 rounded-lg text-destructive hover:bg-destructive/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors mt-0.5"
-            >
-              ✕
+              className="flex items-center justify-center w-8 h-9 rounded-lg text-destructive hover:bg-destructive/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors mt-0.5">✕
             </button>
           </div>
         ))}
@@ -1036,14 +955,13 @@ function validateFields(
   hiddenByAction: Set<string>
 ): Record<string, string> {
   const errs: Record<string, string> = {};
-
   for (const field of fields) {
     if (!isFieldVisible(field, values, hiddenByAction)) continue;
+    if (field.type === "button") continue; // buttons are not validated
 
     const raw = values[field.key];
-    const v = field.validation;
+    const v   = field.validation;
 
-    // ── Required ──────────────────────────────────────────────────────────
     const isEmpty =
       raw === null || raw === undefined || raw === "" ||
       (Array.isArray(raw) && raw.length === 0) ||
@@ -1053,45 +971,33 @@ function validateFields(
       errs[field.key] = `${field.label} is required`;
       continue;
     }
+    if (isEmpty || !v) continue;
 
-    if (isEmpty || !v) continue; // nothing more to validate
-
-    // ── Regex ─────────────────────────────────────────────────────────────
     if (v.regex && typeof raw === "string") {
       if (!new RegExp(v.regex).test(raw)) {
-        errs[field.key] = `${field.label} format is invalid`;
-        continue;
+        errs[field.key] = `${field.label} format is invalid`; continue;
       }
     }
-
-    // ── String length (text / textarea) ───────────────────────────────────
     if (typeof raw === "string") {
       if (v.min_length !== undefined && raw.length < v.min_length) {
-        errs[field.key] = `${field.label} must be at least ${v.min_length} characters`;
-        continue;
+        errs[field.key] = `${field.label} must be at least ${v.min_length} characters`; continue;
       }
       if (v.max_length !== undefined && raw.length > v.max_length) {
-        errs[field.key] = `${field.label} must be at most ${v.max_length} characters`;
-        continue;
+        errs[field.key] = `${field.label} must be at most ${v.max_length} characters`; continue;
       }
     }
-
-    // ── Numeric range (number / decimal) ──────────────────────────────────
     if (field.type === "number" || field.type === "decimal") {
       const num = parseFloat(raw);
       if (!isNaN(num)) {
         if (v.min_value !== undefined && num < v.min_value) {
-          errs[field.key] = `${field.label} must be at least ${v.min_value}`;
-          continue;
+          errs[field.key] = `${field.label} must be at least ${v.min_value}`; continue;
         }
         if (v.max_value !== undefined && num > v.max_value) {
-          errs[field.key] = `${field.label} must be at most ${v.max_value}`;
-          continue;
+          errs[field.key] = `${field.label} must be at most ${v.max_value}`; continue;
         }
       }
     }
   }
-
   return errs;
 }
 
@@ -1105,33 +1011,26 @@ interface FormRendererProps {
 export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   const [stepData, setStepData]   = useState<StepData | null>(null);
   const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState("");
+  const [fetchError, setFetchError] = useState("");
   const [sectionValues, setSectionValues] = useState<Record<string, Record<string, any>>>({});
   const [repeatableRows, setRepeatableRows] = useState<Record<string, Record<string, any>[]>>({});
   const [errors, setErrors]       = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
   const load = async () => {
-    setLoading(true); setError("");
+    setLoading(true); setFetchError("");
     try {
       const res = await fetch(`${BASE_URL}/formBuilder/getActiveSubSectionByStepkey`, {
-        method: "POST",
-        headers: HEADERS,
-        body: JSON.stringify(
-          formId && stepKey
-            ? { form_id: formId, step_key: stepKey }
-            : STATIC_PAYLOAD
-        ),
+        method: "POST", headers: HEADERS,
+        body: JSON.stringify(formId && stepKey ? { form_id: formId, step_key: stepKey } : STATIC_PAYLOAD),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.message || "Failed to load step");
       setStepData(json.data);
     } catch (e: any) {
-      setError(e.message || "Failed to load form");
-    } finally {
-      setLoading(false);
-    }
+      setFetchError(e.message || "Failed to load form");
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, [formId, stepKey]);
@@ -1146,16 +1045,17 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     setSectionValues((p) => ({ ...p, [section]: { ...(p[section] ?? {}), ...mapping } }));
   };
 
-  const handleRowsChange = (stepKey: string, rows: Record<string, any>[]) => {
-    setRepeatableRows((p) => ({ ...p, [stepKey]: rows }));
+  const handleRowsChange = (sk: string, rows: Record<string, any>[]) => {
+    setRepeatableRows((p) => ({ ...p, [sk]: rows }));
   };
 
-  const handleSubmit = useCallback(() => {
-    if (!stepData) return;
+  // Runs validation across all sections; returns the full payload if valid, null if errors exist
+  const validateAndGetPayload = useCallback((): Record<string, any> | null => {
+    if (!stepData) return null;
     const allErrors: Record<string, string> = {};
 
     const parentFields = stepData.parent_step.rendered_json?.fields ?? [];
-    const parentVals = sectionValues["__parent__"] ?? {};
+    const parentVals   = sectionValues["__parent__"] ?? {};
     const parentHidden = buildHiddenByAction(parentFields, parentVals);
     for (const [k, v] of Object.entries(validateFields(parentFields, parentVals, parentHidden)))
       allErrors[`__parent__.${k}`] = v;
@@ -1163,7 +1063,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     for (const sub of stepData.sub_steps ?? []) {
       if (!Boolean(sub.repeatable)) {
         const subFields = sub.rendered_json?.fields ?? [];
-        const subVals = sectionValues[sub.step_key] ?? {};
+        const subVals   = sectionValues[sub.step_key] ?? {};
         const subHidden = buildHiddenByAction(subFields, subVals);
         for (const [k, v] of Object.entries(validateFields(subFields, subVals, subHidden)))
           allErrors[`${sub.step_key}.${k}`] = v;
@@ -1172,22 +1072,27 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
 
     if (Object.keys(allErrors).length > 0) {
       setErrors(allErrors);
-      return;
+      return null;
     }
 
-    const payload = {
-      form_id: formId ?? STATIC_PAYLOAD.form_id,
-      step_key: stepData.parent_step.parent_step_key,
-      sections: sectionValues,
-      repeatable_sections: repeatableRows,
+    return {
+      form_id:              formId ?? STATIC_PAYLOAD.form_id,
+      step_key:             stepData.parent_step.parent_step_key,
+      sections:             sectionValues,
+      repeatable_sections:  repeatableRows,
     };
+  }, [stepData, sectionValues, repeatableRows, formId]);
 
+  const handleSubmit = useCallback(() => {
+    const payload = validateAndGetPayload();
+    if (!payload) return;
     setSubmitted(true);
     console.log("[FormRenderer] Submit payload:", JSON.stringify(payload, null, 2));
-  }, [stepData, sectionValues, formId]);
+  }, [validateAndGetPayload]);
 
   const handleAction = useCallback((action: string) => {
-    if (action === "submit") handleSubmit();
+    if (action === "submit")         handleSubmit();
+    else if (action === "submit_success") setSubmitted(true);
     else if (action === "reset") {
       setSectionValues({});
       setRepeatableRows({});
@@ -1195,6 +1100,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     }
   }, [handleSubmit]);
 
+  // ── Loading / error states ─────────────────────────────────────────────────
   if (loading) return (
     <div className="flex items-center justify-center py-24 gap-2 text-muted-foreground">
       <Loader2 className="size-4 animate-spin" />
@@ -1202,10 +1108,10 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     </div>
   );
 
-  if (error) return (
+  if (fetchError) return (
     <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4 space-y-3">
       <div className="flex items-center gap-2 text-sm text-destructive">
-        <AlertCircle className="size-4 shrink-0" />{error}
+        <AlertCircle className="size-4 shrink-0" />{fetchError}
       </div>
       <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
         <RefreshCw className="size-3.5" /> Retry
@@ -1215,16 +1121,14 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
 
   if (!stepData) return null;
 
-  const parentFields  = stepData.parent_step.rendered_json?.fields ?? [];
-  const subSteps      = stepData.sub_steps ?? [];
-  const hasParent     = parentFields.length > 0;
-  const hasSubSteps   = subSteps.length > 0;
+  const parentFields = stepData.parent_step.rendered_json?.fields ?? [];
+  const subSteps     = stepData.sub_steps ?? [];
+  const hasParent    = parentFields.length > 0;
+  const hasSubSteps  = subSteps.length > 0;
 
-  // Hide the bottom Submit button when the form already contains a button field
-  // with action="submit" — avoids duplicate submit triggers
-  const hasInlineSubmit = [...parentFields,
-    ...subSteps.flatMap((s) => s.rendered_json?.fields ?? [])
-  ].some((f) => f.type === "button" && (f.button?.action ?? "submit") === "submit");
+  // Hide the bottom Submit button when the form already has a button field
+  const hasInlineSubmit = [...parentFields, ...subSteps.flatMap((s) => s.rendered_json?.fields ?? [])]
+    .some((f) => f.type === "button");
 
   if (submitted) return (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-5 py-8 flex flex-col items-center gap-3 text-center">
@@ -1243,29 +1147,19 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-foreground">
-            {stepData.parent_step.parent_step_name}
-          </h2>
-          <p className="text-xs text-muted-foreground font-mono mt-0.5">
-            {stepData.parent_step.parent_step_key}
-          </p>
+          <h2 className="text-base font-semibold">{stepData.parent_step.parent_step_name}</h2>
+          <p className="text-xs text-muted-foreground font-mono mt-0.5">{stepData.parent_step.parent_step_key}</p>
         </div>
         <div className="flex items-center gap-1.5">
-          {hasSubSteps && (
-            <Badge variant="outline" className="text-xs">
-              {subSteps.length} sub-section{subSteps.length !== 1 ? "s" : ""}
-            </Badge>
-          )}
-          {hasParent && (
-            <Badge variant="secondary" className="text-xs">
-              {parentFields.length} field{parentFields.length !== 1 ? "s" : ""}
-            </Badge>
-          )}
+          {hasSubSteps && <Badge variant="outline" className="text-xs">{subSteps.length} sub-section{subSteps.length !== 1 ? "s" : ""}</Badge>}
+          {hasParent && <Badge variant="secondary" className="text-xs">{parentFields.length} field{parentFields.length !== 1 ? "s" : ""}</Badge>}
         </div>
       </div>
 
+      {/* Parent fields */}
       {hasParent && (
         <SectionForm
           sectionKey="__parent__"
@@ -1276,38 +1170,27 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
           onSectionChange={handleChange}
           onSectionAutoFill={handleAutoFill}
           onAction={handleAction}
+          onValidateAndGetPayload={validateAndGetPayload}
           showTitle={false}
         />
       )}
 
+      {/* Sub-steps */}
       {hasSubSteps && (
         <div className="space-y-4">
-          {subSteps
-            .slice()
-            .sort((a, b) => a.step_order - b.step_order)
-            .map((sub) =>
-              Boolean(sub.repeatable) ? (
-                <RepeatableSection
-                  key={sub.step_key}
-                  subStep={sub}
-                  errors={errors}
-                  onRowsChange={handleRowsChange}
-                />
-              ) : (
-                <SectionForm
-                  key={sub.step_key}
-                  sectionKey={sub.step_key}
-                  title={sub.step_name}
-                  fields={sub.rendered_json?.fields ?? []}
-                  sectionValues={sectionValues[sub.step_key] ?? {}}
-                  errors={errors}
-                  onSectionChange={handleChange}
-                  onSectionAutoFill={handleAutoFill}
-                  onAction={handleAction}
-                  showTitle
-                />
-              )
-            )}
+          {subSteps.slice().sort((a, b) => a.step_order - b.step_order).map((sub) =>
+            Boolean(sub.repeatable) ? (
+              <RepeatableSection key={sub.step_key} subStep={sub} errors={errors}
+                onRowsChange={handleRowsChange} onAction={handleAction}
+                onValidateAndGetPayload={validateAndGetPayload} />
+            ) : (
+              <SectionForm key={sub.step_key} sectionKey={sub.step_key} title={sub.step_name}
+                fields={sub.rendered_json?.fields ?? []}
+                sectionValues={sectionValues[sub.step_key] ?? {}}
+                errors={errors} onSectionChange={handleChange} onSectionAutoFill={handleAutoFill}
+                onAction={handleAction} onValidateAndGetPayload={validateAndGetPayload} showTitle />
+            )
+          )}
         </div>
       )}
 
@@ -1317,6 +1200,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
         </div>
       )}
 
+      {/* Validation summary */}
       {Object.keys(errors).length > 0 && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center gap-2 text-sm text-destructive">
           <AlertCircle className="size-4 shrink-0" />
@@ -1324,12 +1208,11 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
         </div>
       )}
 
-      {/* Only show the bottom Submit button when no inline button field handles submit */}
+      {/* Fallback submit — hidden when form has inline button fields */}
       {!hasInlineSubmit && (
         <div className="flex justify-end pt-1">
           <Button onClick={handleSubmit} className="gap-2">
-            <Send className="size-3.5" />
-            Submit
+            <Send className="size-3.5" />Submit
           </Button>
         </div>
       )}
