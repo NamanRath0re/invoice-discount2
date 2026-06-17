@@ -23,7 +23,9 @@ const HEADERS: Record<string, string> = {
 };
 
 // const STATIC_PAYLOAD = { form_id: 16, step_key: "assets" };
-const STATIC_PAYLOAD = { form_id: 25, step_key: "Seocnd" };
+// const STATIC_PAYLOAD = { form_id: 25, step_key: "Seocnd" };
+// const STATIC_PAYLOAD = { form_id: 24, step_key: "field_investigation" };
+const STATIC_PAYLOAD = { form_id: 17, step_key: "family_details" };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -661,7 +663,8 @@ function FieldInput({
         <div className="flex items-center gap-2 h-9">
           <input id={field.key} type="checkbox" disabled={disabled}
             checked={!!value}
-            onChange={(e) => onChange(field.key, e.target.checked ? "1" : "0")}
+            // onChange={(e) => onChange(field.key, e.target.checked ? "1" : "0")}
+            onChange={(e) => onChange(field.key, e.target.checked)}
             className="h-4 w-4 rounded border-border accent-primary cursor-pointer" />
           <Label htmlFor={field.key} className="text-xs font-normal cursor-pointer">{field.label}</Label>
         </div>
@@ -1129,7 +1132,6 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   // Hide the bottom Submit button when the form already has a button field
   const hasInlineSubmit = [...parentFields, ...subSteps.flatMap((s) => s.rendered_json?.fields ?? [])]
     .some((f) => f.type === "button");
-
   if (submitted) return (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-5 py-8 flex flex-col items-center gap-3 text-center">
       <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/40">

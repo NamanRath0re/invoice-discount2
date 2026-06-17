@@ -1172,7 +1172,7 @@ export default function PropertiesPanel({
                         })
                       }}
                     >
-                      <SelectTrigger className="h-8 text-xs">
+                      <SelectTrigger className="h-8 text-xs w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1337,7 +1337,7 @@ export default function PropertiesPanel({
           {/* Button config */}
           {component.type === "button" && (
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 ">
                 <Label className="text-xs">Variant</Label>
                 <Select
                   value={(component.ui as any).variant || "default"}
@@ -1347,7 +1347,7 @@ export default function PropertiesPanel({
                     })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1369,7 +1369,7 @@ export default function PropertiesPanel({
                     })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
