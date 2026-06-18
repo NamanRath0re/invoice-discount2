@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Loader2, Check, Search, AlertCircle, RefreshCw, Send, X, CalendarRange,
+  Trash2,
 } from "lucide-react";
 import { Input }   from "@/components/ui/input";
 import { Label }   from "@/components/ui/label";
@@ -25,7 +26,219 @@ const HEADERS: Record<string, string> = {
 // const STATIC_PAYLOAD = { form_id: 16, step_key: "assets" };
 // const STATIC_PAYLOAD = { form_id: 25, step_key: "Seocnd" };
 // const STATIC_PAYLOAD = { form_id: 24, step_key: "field_investigation" };
-const STATIC_PAYLOAD = { form_id: 17, step_key: "family_details" };
+// const STATIC_PAYLOAD = { form_id: 17, step_key: "family_details" };
+const STATIC_PAYLOAD = { form_id: 15, step_key: "personal_info" };
+
+const dummyData = {
+  "parent_step": {
+            "id": 66,
+            "form_id": 17,
+            "parent_step_key": "family_details",
+            "parent_step_name": "Family Details",
+            "repeatable": 0,
+            "rendered_json": {
+                "fields": [
+                    {
+                        "ui": {
+                            "visible": true,
+                            "editable": true
+                        },
+                        "key": "number_of_family_member",
+                        "type": "text",
+                        "label": "Number of Family Members",
+                        "grid_width": 12,
+                        "validation": {
+                            "max_length": 100
+                        }
+                    }
+                ]
+            }
+        },
+        "sub_steps": [
+            // {
+            //     "id": 69,
+            //     "form_id": 17,
+            //     "parent_step_id": 66,
+            //     "step_key": "family_members",
+            //     "step_name": "Family Members",
+            //     "step_order": 1,
+            //     "repeatable_section": 1,
+            //     "is_mandatory": 1,
+            //     "is_skippable": 0,
+            //     "rendered_json": {
+            //         "fields": [
+            //             {
+            //                 "ui": {
+            //                     "visible": true,
+            //                     "editable": true
+            //                 },
+            //                 "key": "full_name",
+            //                 "type": "text",
+            //                 "label": "Name",
+            //                 "grid_width": 4,
+            //                 "validation": {
+            //                     "max_length": 150
+            //                 }
+            //             },
+            //             {
+            //                 "ui": {
+            //                     "visible": true,
+            //                     "editable": true
+            //                 },
+            //                 "key": "relation_with_applicant",
+            //                 "type": "text",
+            //                 "label": "Relation with Applicant",
+            //                 "grid_width": 4
+            //             },
+            //             {
+            //                 "ui": {
+            //                     "visible": true,
+            //                     "editable": true
+            //                 },
+            //                 "key": "age",
+            //                 "type": "text",
+            //                 "label": "Age",
+            //                 "grid_width": 4
+            //             }
+            //         ]
+            //     },
+            //     "sub_steps": []
+            // }
+               {
+                "id": 69,
+                "form_id": 17,
+                "parent_step_id": 66,
+                "step_key": "co_applicant_details",
+                "step_name": "Co-Applicant Details",
+                "step_order": 1,
+                // "repeatable": 1,
+                "repeatable_section": 1,
+                "is_mandatory": 1,
+                "is_skippable": 0,
+                "rendered_json": {
+                    "fields": [
+                        {
+                            "ui": {
+                                "visible": true,
+                                "editable": true
+                            },
+                            "key": "full_name",
+                            "type": "text",
+                            "label": "Full Name",
+                            "width": "3\/12",
+                            "required": false,
+                            "alignment": "left",
+                            "help_text": "",
+                            "validation": {
+                                "max_length": 150
+                            },
+                            "placeholder": ""
+                        },
+                        {
+                            "ui": {
+                                "visible": true,
+                                "editable": true
+                            },
+                            "key": "mobile_no",
+                            "type": "text",
+                            "label": "Mobile Number",
+                            "width": "3\/12",
+                            "required": false,
+                            "alignment": "left",
+                            "help_text": "",
+                            "validation": {
+                                "regex": "^[6-9][0-9]{9}$",
+                                "max_length": 10
+                            },
+                            "placeholder": ""
+                        },
+                        {
+                            "ui": {
+                                "visible": true,
+                                "editable": true
+                            },
+                            "key": "email",
+                            "type": "text",
+                            "label": "Email Address",
+                            "width": "3\/12",
+                            "required": false,
+                            "alignment": "left",
+                            "help_text": "",
+                            "validation": {
+                                "regex": "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Za-z]{2,}$",
+                                "max_length": 150
+                            },
+                            "placeholder": ""
+                        },
+                        {
+                            "ui": {
+                                "visible": true,
+                                "editable": true
+                            },
+                            "key": "gender",
+                            "type": "select",
+                            "label": "Gender",
+                            "width": "3\/12",
+                            "options": [
+                                {
+                                    "key": "male",
+                                    "label": "Male"
+                                },
+                                {
+                                    "key": "female",
+                                    "label": "Female"
+                                },
+                                {
+                                    "key": "other",
+                                    "label": "Other"
+                                }
+                            ],
+                            "required": false,
+                            "alignment": "left",
+                            "help_text": "",
+                            "max_value": null,
+                            "min_value": null,
+                            "placeholder": ""
+                        },
+                        {
+                            "ui": {
+                                "visible": true,
+                                "editable": true
+                            },
+                            "key": "name",
+                            "type": "text",
+                            "label": "Name",
+                            "grid_width": 4,
+                            "validation": {
+                                "max_length": 150
+                            }
+                        },
+                        {
+                            "ui": {
+                                "visible": true,
+                                "editable": true
+                            },
+                            "key": "relation_with_applicant",
+                            "type": "text",
+                            "label": "Relation with Applicant",
+                            "grid_width": 4
+                        },
+                        {
+                            "ui": {
+                                "visible": true,
+                                "editable": true
+                            },
+                            "key": "age",
+                            "type": "text",
+                            "label": "Age",
+                            "grid_width": 4
+                        }
+                    ]
+                },
+                "sub_steps": []
+            },
+        ]
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,7 +317,8 @@ interface SubStep {
   step_key: string;
   step_name: string;
   step_order: number;
-  repeatable: 0 | 1 | boolean;
+  repeatable: 0 | 1 | boolean;          // repeats individual field ROWS (compact grid)
+  repeatable_section: 0 | 1 | boolean;  // duplicates the WHOLE section/card
   rendered_json: { fields: FieldDef[] };
   sub_steps?: SubStep[];
 }
@@ -950,6 +1164,88 @@ function RepeatableSection({
   );
 }
 
+function RepeatableCardSection({
+  subStep, errors, onCardsChange, onAction, onValidateAndGetPayload,
+}: {
+  subStep: SubStep; errors: Record<string, string>;
+  onCardsChange: (stepKey: string, cards: Record<string, any>[]) => void;
+  onAction?: (action: string) => void;
+  onValidateAndGetPayload: () => Record<string, any> | null;
+}) {
+  const fields = subStep.rendered_json?.fields ?? [];
+  const [cards, setCards] = useState<Record<string, any>[]>([{}]);
+
+  const updateCards = (next: Record<string, any>[]) => {
+    setCards(next);
+    onCardsChange(subStep.step_key, next);
+  };
+
+  const addCard    = () => updateCards([...cards, {}]);
+  const removeCard = (idx: number) => cards.length > 1 && updateCards(cards.filter((_, i) => i !== idx));
+
+  const handleChange = (cardIdx: number, key: string, val: any) =>
+    updateCards(cards.map((c, i) => (i === cardIdx ? { ...c, [key]: val } : c)));
+
+  const handleAutoFill = (cardIdx: number, _key: string, mapping: Record<string, string>) =>
+    updateCards(cards.map((c, i) => (i === cardIdx ? { ...c, ...mapping } : c)));
+
+  return (
+    <div className="space-y-4">
+      {/* Header — title + Add More */}
+      <div className="flex items-center justify-between"> 
+        <h3 className="text-sm font-semibold text-foreground">{subStep.step_name}</h3>
+        <Button type="button" size="sm" onClick={addCard} className="gap-1.5">
+          <span className="text-base leading-none">+</span> Add More
+        </Button>
+      </div>
+
+      {cards.map((cardValues, cardIdx) => {
+        const cardKey        = `${subStep.step_key}[${cardIdx}]`;
+        const hiddenByAction = buildHiddenByAction(fields, cardValues);
+        const visible        = fields.filter((f) => isFieldVisible(f, cardValues, hiddenByAction));
+
+        return (
+          <div key={cardIdx} className="border border-border rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 bg-muted/40 border-b border-border">
+              <h4 className="text-sm font-medium text-primary">
+                {subStep.step_name} - {cardIdx + 1}
+              </h4>
+              {cardIdx > 0 && (
+                <Button type="button" variant="destructive" size="sm" onClick={() => removeCard(cardIdx)}>
+                  <Trash2 className="size-3.5" />
+                </Button>
+              )}
+            </div>
+
+            <div className="p-5">
+              {visible.length === 0 ? (
+                <p className="text-xs text-muted-foreground/50 text-center py-4">No fields configured</p>
+              ) : (
+                <div className="grid grid-cols-12 gap-x-4 gap-y-5">
+                  {visible.map((field) => (
+                    <div key={field.key} className={colSpan(field)}>
+                      <FormField
+                        field={field}
+                        value={cardValues[field.key]}
+                        onChange={(key, val) => handleChange(cardIdx, key, val)}
+                        onAutoFill={(key, mapping) => handleAutoFill(cardIdx, key, mapping)}
+                        onAction={onAction}
+                        onValidateAndGetPayload={onValidateAndGetPayload}
+                        errors={errors}
+                        errPrefix={cardKey}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 function validateFields(
@@ -1017,6 +1313,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   const [fetchError, setFetchError] = useState("");
   const [sectionValues, setSectionValues] = useState<Record<string, Record<string, any>>>({});
   const [repeatableRows, setRepeatableRows] = useState<Record<string, Record<string, any>[]>>({});
+  const [repeatableCards, setRepeatableCards] = useState<Record<string, Record<string, any>[]>>({});
   const [errors, setErrors]       = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -1030,7 +1327,8 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.message || "Failed to load step");
-      setStepData(json.data);
+        setStepData(json.data);
+      // setStepData(dummyData as StepData); // Using dummy data for demonstration
     } catch (e: any) {
       setFetchError(e.message || "Failed to load form");
     } finally { setLoading(false); }
@@ -1052,6 +1350,10 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     setRepeatableRows((p) => ({ ...p, [sk]: rows }));
   };
 
+  const handleCardsChange = (sk: string, cards: Record<string, any>[]) => {
+    setRepeatableCards((p) => ({ ...p, [sk]: cards }));
+  };
+
   // Runs validation across all sections; returns the full payload if valid, null if errors exist
   const validateAndGetPayload = useCallback((): Record<string, any> | null => {
     if (!stepData) return null;
@@ -1064,7 +1366,16 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
       allErrors[`__parent__.${k}`] = v;
 
     for (const sub of stepData.sub_steps ?? []) {
-      if (!Boolean(sub.repeatable)) {
+      if (Boolean(sub.repeatable_section)) {
+        // Validate each duplicated card independently
+        const subFields = sub.rendered_json?.fields ?? [];
+        const cards     = repeatableCards[sub.step_key] ?? [{}];
+        cards.forEach((cardVals, idx) => {
+          const cardHidden = buildHiddenByAction(subFields, cardVals);
+          for (const [k, v] of Object.entries(validateFields(subFields, cardVals, cardHidden)))
+            allErrors[`${sub.step_key}[${idx}].${k}`] = v;
+        });
+      } else if (!Boolean(sub.repeatable)) {
         const subFields = sub.rendered_json?.fields ?? [];
         const subVals   = sectionValues[sub.step_key] ?? {};
         const subHidden = buildHiddenByAction(subFields, subVals);
@@ -1079,12 +1390,13 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     }
 
     return {
-      form_id:              formId ?? STATIC_PAYLOAD.form_id,
-      step_key:             stepData.parent_step.parent_step_key,
-      sections:             sectionValues,
-      repeatable_sections:  repeatableRows,
+      form_id:               formId ?? STATIC_PAYLOAD.form_id,
+      step_key:              stepData.parent_step.parent_step_key,
+      sections:              sectionValues,
+      repeatable_sections:   repeatableRows,
+      repeatable_card_sections: repeatableCards,
     };
-  }, [stepData, sectionValues, repeatableRows, formId]);
+  }, [stepData, sectionValues, repeatableRows, repeatableCards, formId]);
 
   const handleSubmit = useCallback(() => {
     const payload = validateAndGetPayload();
@@ -1099,6 +1411,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     else if (action === "reset") {
       setSectionValues({});
       setRepeatableRows({});
+      setRepeatableCards({});
       setErrors({});
     }
   }, [handleSubmit]);
@@ -1132,6 +1445,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   // Hide the bottom Submit button when the form already has a button field
   const hasInlineSubmit = [...parentFields, ...subSteps.flatMap((s) => s.rendered_json?.fields ?? [])]
     .some((f) => f.type === "button");
+
   if (submitted) return (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-5 py-8 flex flex-col items-center gap-3 text-center">
       <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/40">
@@ -1141,7 +1455,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
         <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Form submitted</p>
         <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">Check the console for the payload</p>
       </div>
-      <Button variant="outline" size="sm" onClick={() => { setSubmitted(false); setSectionValues({}); setRepeatableRows({}); }}>
+      <Button variant="outline" size="sm" onClick={() => { setSubmitted(false); setSectionValues({}); setRepeatableRows({}); setRepeatableCards({}); }}>
         Reset
       </Button>
     </div>
@@ -1181,7 +1495,11 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
       {hasSubSteps && (
         <div className="space-y-4">
           {subSteps.slice().sort((a, b) => a.step_order - b.step_order).map((sub) =>
-            Boolean(sub.repeatable) ? (
+            Boolean(sub.repeatable_section) ? (
+              <RepeatableCardSection key={sub.step_key} subStep={sub} errors={errors}
+                onCardsChange={handleCardsChange} onAction={handleAction}
+                onValidateAndGetPayload={validateAndGetPayload} />
+            ) : Boolean(sub.repeatable) ? (
               <RepeatableSection key={sub.step_key} subStep={sub} errors={errors}
                 onRowsChange={handleRowsChange} onAction={handleAction}
                 onValidateAndGetPayload={validateAndGetPayload} />
