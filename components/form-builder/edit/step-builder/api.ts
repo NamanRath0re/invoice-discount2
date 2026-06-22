@@ -40,7 +40,7 @@ export async function addSubStep(payload: {
   step_order: number;
   repeatable: boolean;
   // repeatable_fields: boolean;
-  repeatable_section: boolean;
+  // repeatable_section: boolean;
   parent_step_id: number;
 }): Promise<void> {
   const res = await fetch(`${FORM_API}/addSubStep`, {

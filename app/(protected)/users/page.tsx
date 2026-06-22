@@ -111,8 +111,8 @@ const dummyData = {
                 "step_key": "co_applicant_details",
                 "step_name": "Co-Applicant Details",
                 "step_order": 1,
-                // "repeatable": 1,
-                "repeatable_section": 1,
+                "repeatable": 1,
+                // "repeatable_section": 1,
                 "is_mandatory": 1,
                 "is_skippable": 0,
                 "rendered_json": {
@@ -232,7 +232,75 @@ const dummyData = {
                             "type": "text",
                             "label": "Age",
                             "grid_width": 4
+                        },
+                        {
+                        "ui": {
+                            "visible": true,
+                            "editable": true
+                        },
+                        "key": "pincode",
+                        "type": "text",
+                        "label": "Pincode",
+                        "required": true,
+                        "grid_width": 12,
+                        "responsive": {
+                            "lg": 4,
+                            "md": 4,
+                            "sm": 12
+                        },
+                        "validation": {
+                            "regex": "^[0-9]{6}$",
+                            "max_length": 6
+                        },
+                        "data_source": {
+                            "type": "database",
+                            "method": "POST",
+                            "trigger": "onChange",
+                            "endpoint": "gateway\/internal\/getPincode",
+                            "source_key": "PINCODE_DB",
+                            "response_mapping": {
+                                "city": "city",
+                                "state": "state"
+                            }
+                        },
+                        "placeholder": "Enter Pincode"
+                    },
+                    {
+                        "ui": {
+                            "visible": true,
+                            "editable": true
+                        },
+                        "key": "city",
+                        "type": "text",
+                        "label": "City",
+                        "grid_width": 12,
+                        "responsive": {
+                            "lg": 4,
+                            "md": 4,
+                            "sm": 12
+                        },
+                        "validation": {
+                            "max_length": 100
                         }
+                    },
+                    {
+                        "ui": {
+                            "visible": true,
+                            "editable": true
+                        },
+                        "key": "state",
+                        "type": "text",
+                        "label": "State",
+                        "grid_width": 12,
+                        "responsive": {
+                            "lg": 4,
+                            "md": 4,
+                            "sm": 12
+                        },
+                        "validation": {
+                            "max_length": 100
+                        }
+                    },
                     ]
                 },
                 "sub_steps": []
@@ -317,8 +385,7 @@ interface SubStep {
   step_key: string;
   step_name: string;
   step_order: number;
-  repeatable: 0 | 1 | boolean;          // repeats individual field ROWS (compact grid)
-  repeatable_section: 0 | 1 | boolean;  // duplicates the WHOLE section/card
+  repeatable: 0 | 1 | boolean;  // duplicates the WHOLE section/card (with Add More / Remove)
   rendered_json: { fields: FieldDef[] };
   sub_steps?: SubStep[];
 }
@@ -1104,65 +1171,13 @@ function SectionForm({
   );
 }
 
-// ─── Repeatable section ───────────────────────────────────────────────────────
-
-function RepeatableSection({
-  subStep, errors, onRowsChange, onAction, onValidateAndGetPayload,
-}: {
-  subStep: SubStep; errors: Record<string, string>;
-  onRowsChange: (stepKey: string, rows: Record<string, any>[]) => void;
-  onAction?: (action: string) => void;
-  onValidateAndGetPayload: () => Record<string, any> | null;
-}) {
-  const fields = subStep.rendered_json?.fields ?? [];
-  const [rows, setRows] = useState<Record<string, any>[]>([{}]);
-
-  const updateRows = (next: Record<string, any>[]) => {
-    setRows(next);
-    onRowsChange(subStep.step_key, next);
-  };
-
-  const colTemplate = `repeat(${fields.length}, minmax(0,1fr)) 36px`;
-
-  return (
-    <div className="border border-border rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 bg-muted/40 border-b border-border">
-        <h4 className="text-xs font-semibold">{subStep.step_name}</h4>
-        <button type="button" onClick={() => updateRows([...rows, {}])}
-          className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 transition-colors">
-          <span className="text-white text-base leading-none pb-0.5">+</span>
-        </button>
-      </div>
-      <div className="grid gap-3 px-5 pt-4 pb-1" style={{ gridTemplateColumns: colTemplate }}>
-        {fields.map((f) => (
-          <div key={f.key} className="text-[11px] font-medium text-muted-foreground">
-            {f.label}{f.required && <span className="text-destructive ml-0.5">*</span>}
-          </div>
-        ))}
-        <div />
-      </div>
-      <div className="px-5 pb-4 space-y-2">
-        {rows.map((rowValues, rowIdx) => (
-          <div key={rowIdx} className="grid gap-3 items-start" style={{ gridTemplateColumns: colTemplate }}>
-            {fields.map((f) => (
-              <FieldInput key={f.key} field={f} value={rowValues[f.key]}
-                onChange={(key, val) => updateRows(rows.map((r, i) => i === rowIdx ? { ...r, [key]: val } : r))}
-                onAutoFill={(_key, mapping) => updateRows(rows.map((r, i) => i === rowIdx ? { ...r, ...mapping } : r))}
-                onAction={onAction}
-                onValidateAndGetPayload={onValidateAndGetPayload}
-                error={errors[`${subStep.step_key}[${rowIdx}].${f.key}`]} />
-            ))}
-            <button type="button"
-              onClick={() => rows.length > 1 && updateRows(rows.filter((_, i) => i !== rowIdx))}
-              disabled={rows.length <= 1}
-              className="flex items-center justify-center w-8 h-9 rounded-lg text-destructive hover:bg-destructive/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors mt-0.5">✕
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+// ─── Repeatable section (whole card duplicated) ───────────────────────────────
+// repeatable: true duplicates the ENTIRE card — title "Name - N", full grid
+// layout with labels above each field, a header "+ Add More" button, and a
+// per-card "Remove" button (hidden on the first card).
+// this duplicates the ENTIRE card — title "Name - N", full grid layout with
+// labels above each field, a header "+ Add More" button, and a per-card
+// "Remove" button (hidden on the first card).
 
 function RepeatableCardSection({
   subStep, errors, onCardsChange, onAction, onValidateAndGetPayload,
@@ -1192,7 +1207,7 @@ function RepeatableCardSection({
   return (
     <div className="space-y-4">
       {/* Header — title + Add More */}
-      <div className="flex items-center justify-between"> 
+      <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">{subStep.step_name}</h3>
         <Button type="button" size="sm" onClick={addCard} className="gap-1.5">
           <span className="text-base leading-none">+</span> Add More
@@ -1312,7 +1327,6 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   const [loading, setLoading]     = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [sectionValues, setSectionValues] = useState<Record<string, Record<string, any>>>({});
-  const [repeatableRows, setRepeatableRows] = useState<Record<string, Record<string, any>[]>>({});
   const [repeatableCards, setRepeatableCards] = useState<Record<string, Record<string, any>[]>>({});
   const [errors, setErrors]       = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -1320,15 +1334,15 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   const load = async () => {
     setLoading(true); setFetchError("");
     try {
-      const res = await fetch(`${BASE_URL}/formBuilder/getActiveSubSectionByStepkey`, {
-        method: "POST", headers: HEADERS,
-        body: JSON.stringify(formId && stepKey ? { form_id: formId, step_key: stepKey } : STATIC_PAYLOAD),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (!json.success) throw new Error(json.message || "Failed to load step");
-        setStepData(json.data);
-      // setStepData(dummyData as StepData); // Using dummy data for demonstration
+      // const res = await fetch(`${BASE_URL}/formBuilder/getActiveSubSectionByStepkey`, {
+      //   method: "POST", headers: HEADERS,
+      //   body: JSON.stringify(formId && stepKey ? { form_id: formId, step_key: stepKey } : STATIC_PAYLOAD),
+      // });
+      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // const json = await res.json();
+      // if (!json.success) throw new Error(json.message || "Failed to load step");
+      // setStepData(json.data);
+      setStepData(dummyData as StepData); // Using dummy data for demonstration
     } catch (e: any) {
       setFetchError(e.message || "Failed to load form");
     } finally { setLoading(false); }
@@ -1344,10 +1358,6 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
 
   const handleAutoFill = (section: string, _key: string, mapping: Record<string, string>) => {
     setSectionValues((p) => ({ ...p, [section]: { ...(p[section] ?? {}), ...mapping } }));
-  };
-
-  const handleRowsChange = (sk: string, rows: Record<string, any>[]) => {
-    setRepeatableRows((p) => ({ ...p, [sk]: rows }));
   };
 
   const handleCardsChange = (sk: string, cards: Record<string, any>[]) => {
@@ -1366,7 +1376,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
       allErrors[`__parent__.${k}`] = v;
 
     for (const sub of stepData.sub_steps ?? []) {
-      if (Boolean(sub.repeatable_section)) {
+      if (Boolean(sub.repeatable)) {
         // Validate each duplicated card independently
         const subFields = sub.rendered_json?.fields ?? [];
         const cards     = repeatableCards[sub.step_key] ?? [{}];
@@ -1375,7 +1385,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
           for (const [k, v] of Object.entries(validateFields(subFields, cardVals, cardHidden)))
             allErrors[`${sub.step_key}[${idx}].${k}`] = v;
         });
-      } else if (!Boolean(sub.repeatable)) {
+      } else {
         const subFields = sub.rendered_json?.fields ?? [];
         const subVals   = sectionValues[sub.step_key] ?? {};
         const subHidden = buildHiddenByAction(subFields, subVals);
@@ -1390,13 +1400,12 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     }
 
     return {
-      form_id:               formId ?? STATIC_PAYLOAD.form_id,
-      step_key:              stepData.parent_step.parent_step_key,
-      sections:              sectionValues,
-      repeatable_sections:   repeatableRows,
-      repeatable_card_sections: repeatableCards,
+      form_id:              formId ?? STATIC_PAYLOAD.form_id,
+      step_key:             stepData.parent_step.parent_step_key,
+      sections:             sectionValues,
+      repeatable_sections:  repeatableCards,
     };
-  }, [stepData, sectionValues, repeatableRows, repeatableCards, formId]);
+  }, [stepData, sectionValues, repeatableCards, formId]);
 
   const handleSubmit = useCallback(() => {
     const payload = validateAndGetPayload();
@@ -1410,7 +1419,6 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     else if (action === "submit_success") setSubmitted(true);
     else if (action === "reset") {
       setSectionValues({});
-      setRepeatableRows({});
       setRepeatableCards({});
       setErrors({});
     }
@@ -1455,7 +1463,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
         <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Form submitted</p>
         <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">Check the console for the payload</p>
       </div>
-      <Button variant="outline" size="sm" onClick={() => { setSubmitted(false); setSectionValues({}); setRepeatableRows({}); setRepeatableCards({}); }}>
+      <Button variant="outline" size="sm" onClick={() => { setSubmitted(false); setSectionValues({}); setRepeatableCards({}); }}>
         Reset
       </Button>
     </div>
@@ -1495,13 +1503,9 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
       {hasSubSteps && (
         <div className="space-y-4">
           {subSteps.slice().sort((a, b) => a.step_order - b.step_order).map((sub) =>
-            Boolean(sub.repeatable_section) ? (
+            Boolean(sub.repeatable) ? (
               <RepeatableCardSection key={sub.step_key} subStep={sub} errors={errors}
                 onCardsChange={handleCardsChange} onAction={handleAction}
-                onValidateAndGetPayload={validateAndGetPayload} />
-            ) : Boolean(sub.repeatable) ? (
-              <RepeatableSection key={sub.step_key} subStep={sub} errors={errors}
-                onRowsChange={handleRowsChange} onAction={handleAction}
                 onValidateAndGetPayload={validateAndGetPayload} />
             ) : (
               <SectionForm key={sub.step_key} sectionKey={sub.step_key} title={sub.step_name}

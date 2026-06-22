@@ -41,7 +41,7 @@ export interface AddSubSectionPayload {
   step_order: number;
   repeatable: boolean;
   // repeatable_fields: boolean;
-  repeatable_section: boolean;
+  // repeatable_section: boolean;
   parent_step_id: number; // step's id (e.g. 10), not parent_step_id field
 }
 
