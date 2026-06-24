@@ -301,6 +301,33 @@ const dummyData = {
                             "max_length": 100
                         }
                     },
+                    //   {
+                    //     "ui": {
+                    //         "visible": true,
+                    //         "editable": true
+                    //     },
+                    //     "key": "submit_btn",
+                    //     "type": "button",
+                    //     "label": "Submit",
+                    //     "grid_width": 6,
+                    //     "responsive": {
+                    //         "lg": 6,
+                    //         "md": 6,
+                    //         "sm": 12
+                    //     },
+                    //     "data_source": {
+                    //         "type": "database",
+                    //         "method": "POST",
+                    //         "trigger": "onClick",
+                    //         "endpoint": "gateway\/internal\/getPincode",
+                    //         "source_key": "PINCODE_DB",
+                    //         "response_mapping": {
+                    //             "city": "city",
+                    //             "state": "state",
+                    //             "district": "district"
+                    //         }
+                    //     }
+                    // }
                     ]
                 },
                 "sub_steps": []
@@ -1190,19 +1217,23 @@ function RepeatableCardSection({
   const fields = subStep.rendered_json?.fields ?? [];
   const [cards, setCards] = useState<Record<string, any>[]>([{}]);
 
-  const updateCards = (next: Record<string, any>[]) => {
-    setCards(next);
-    onCardsChange(subStep.step_key, next);
-  };
+  // Notify parent AFTER React has committed the new cards state, not during render.
+  // Calling onCardsChange (which does setRepeatableCards in FormRenderer) inside
+  // a setCards updater triggers "setState during render" warnings.
+  useEffect(() => {
+    onCardsChange(subStep.step_key, cards);
+  }, [cards]);
 
-  const addCard    = () => updateCards([...cards, {}]);
-  const removeCard = (idx: number) => cards.length > 1 && updateCards(cards.filter((_, i) => i !== idx));
+  const addCard = () => setCards((prev) => [...prev, {}]);
+
+  const removeCard = (idx: number) =>
+    setCards((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx));
 
   const handleChange = (cardIdx: number, key: string, val: any) =>
-    updateCards(cards.map((c, i) => (i === cardIdx ? { ...c, [key]: val } : c)));
+    setCards((prev) => prev.map((c, i) => (i === cardIdx ? { ...c, [key]: val } : c)));
 
   const handleAutoFill = (cardIdx: number, _key: string, mapping: Record<string, string>) =>
-    updateCards(cards.map((c, i) => (i === cardIdx ? { ...c, ...mapping } : c)));
+    setCards((prev) => prev.map((c, i) => (i === cardIdx ? { ...c, ...mapping } : c)));
 
   return (
     <div className="space-y-4">
@@ -1533,13 +1564,13 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
       )}
 
       {/* Fallback submit — hidden when form has inline button fields */}
-      {!hasInlineSubmit && (
+      {/* {!hasInlineSubmit && (
         <div className="flex justify-end pt-1">
           <Button onClick={handleSubmit} className="gap-2">
             <Send className="size-3.5" />Submit
           </Button>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

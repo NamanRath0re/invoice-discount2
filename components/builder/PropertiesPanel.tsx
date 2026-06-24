@@ -720,14 +720,14 @@ export default function PropertiesPanel({
               }
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="static">Static List</SelectItem>
               <SelectItem value="dynamic">Dynamic Options</SelectItem>
             </SelectContent>
-          </Select>
+          </Select> 
         </div>
 
         {!component.options?.dynamic ? (
