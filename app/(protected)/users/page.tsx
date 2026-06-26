@@ -26,8 +26,8 @@ const HEADERS: Record<string, string> = {
 // const STATIC_PAYLOAD = { form_id: 16, step_key: "assets" };
 // const STATIC_PAYLOAD = { form_id: 25, step_key: "Seocnd" };
 // const STATIC_PAYLOAD = { form_id: 24, step_key: "field_investigation" };
-// const STATIC_PAYLOAD = { form_id: 17, step_key: "family_details" };
-const STATIC_PAYLOAD = { form_id: 15, step_key: "personal_info" };
+const STATIC_PAYLOAD = { form_id: 17, step_key: "family_details" };
+// const STATIC_PAYLOAD = { form_id: 15, step_key: "personal_info" };
 
 const dummyData = {
   "parent_step": {
@@ -331,7 +331,49 @@ const dummyData = {
                     ]
                 },
                 "sub_steps": []
-            },
+            },{
+            "id": 70,
+                "form_id": 17,
+                "parent_step_id": 66,
+                "step_key": "btn",
+                "step_name": "Form Submission",
+                "step_order": 2,
+                "repeatable": 0,
+                // "repeatable_section": 1,
+                "is_mandatory": 1,
+                "is_skippable": 0,
+                "rendered_json": {
+                    "fields": [
+                        {
+                        "ui": {
+                            "visible": true,
+                            "editable": true
+                        },
+                        "key": "submit_btn",
+                        "type": "button",
+                        "label": "Submit",
+                        "grid_width": 12,
+                        "responsive": {
+                            "lg": 12,
+                            "md": 12,
+                            "sm": 12
+                        },
+                        "data_source": {
+                            "type": "database",
+                            "method": "POST",
+                            "trigger": "onClick",
+                            "endpoint": "gateway\/internal\/getPincode",
+                            "source_key": "PINCODE_DB",
+                            "response_mapping": {
+                                "city": "city",
+                                "state": "state",
+                                "district": "district"
+                            }
+                        }
+                    }
+                    ]
+                }
+            }
         ]
 }
 
@@ -805,7 +847,7 @@ function DataSourceField({
         </div>
       </div>
       {fetchErr && <p className="text-xs text-destructive">{fetchErr}</p>}
-      {filled && <p className="text-xs text-green-600 flex items-center gap-1"><Check className="size-3 shrink-0" /> Details fetched</p>}
+      {/* {filled && <p className="text-xs text-green-600 flex items-center gap-1"><Check className="size-3 shrink-0" /> Details fetched</p>} */}
     </div>
   );
 }
@@ -1365,15 +1407,15 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   const load = async () => {
     setLoading(true); setFetchError("");
     try {
-      // const res = await fetch(`${BASE_URL}/formBuilder/getActiveSubSectionByStepkey`, {
-      //   method: "POST", headers: HEADERS,
-      //   body: JSON.stringify(formId && stepKey ? { form_id: formId, step_key: stepKey } : STATIC_PAYLOAD),
-      // });
-      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // const json = await res.json();
-      // if (!json.success) throw new Error(json.message || "Failed to load step");
-      // setStepData(json.data);
-      setStepData(dummyData as StepData); // Using dummy data for demonstration
+      const res = await fetch(`${BASE_URL}/formBuilder/getActiveSubSectionByStepkey`, {
+        method: "POST", headers: HEADERS,
+        body: JSON.stringify(formId && stepKey ? { form_id: formId, step_key: stepKey } : STATIC_PAYLOAD),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to load step");
+      setStepData(json.data);
+      // setStepData(dummyData as StepData); // Using dummy data for demonstration
     } catch (e: any) {
       setFetchError(e.message || "Failed to load form");
     } finally { setLoading(false); }

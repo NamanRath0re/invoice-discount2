@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Layers, Plus, RefreshCw, X, Repeat2 } from "lucide-react";
+import { Layers, Plus, RefreshCw, X, Repeat2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +12,11 @@ import type { SubStep } from "../types";
 interface Props {
   open: boolean;
   formId: number;
-  parentStepId: number;       // step's `id` field (e.g. 10) — sent as parent_step_id to API
+  parentStepId: number;
   parentStepName: string;
   existingSubSteps: SubStep[];
   onClose: () => void;
-  onSuccess: () => void;      // triggers getFormById re-fetch in parent
+  onSuccess: () => void;
 }
 
 export function AddSubSectionModal({
@@ -31,6 +31,7 @@ export function AddSubSectionModal({
   const [subName,    setSubName]    = useState("");
   const [subKey,     setSubKey]     = useState("");
   const [repeatable, setRepeatable] = useState(false);
+  const [accordion,  setAccordion]  = useState(false);
   const [loading,    setLoading]    = useState(false);
   const [errors,     setErrors]     = useState<{ name?: string; key?: string }>({});
 
@@ -66,15 +67,16 @@ export function AddSubSectionModal({
         step_key:       subKey.trim(),
         step_name:      subName.trim(),
         step_order:     nextOrder,
-        repeatable,                  // boolean — API accepts true/false
-        parent_step_id: parentStepId, // step's id field
+        repeatable,
+        accordion,
+        parent_step_id: parentStepId,
       });
 
       toast.success("Sub-section added", {
         description: `"${subName.trim()}" added under "${parentStepName}".`,
       });
 
-      onSuccess(); // parent re-fetches getFormById — sub_steps come from API
+      onSuccess();
     } catch (e: any) {
       toast.error("Failed to add sub-section", { description: e.message });
     } finally {
@@ -86,6 +88,7 @@ export function AddSubSectionModal({
     setSubName("");
     setSubKey("");
     setRepeatable(false);
+    setAccordion(false);
     setErrors({});
     onClose();
   };
@@ -172,6 +175,32 @@ export function AddSubSectionModal({
               <span
                 className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
                   repeatable ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Accordion toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+            <div className="flex items-center gap-2.5">
+              <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-foreground">Accordion</p>
+                <p className="text-[10px] text-muted-foreground">Display this sub-section as an accordion</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={accordion}
+              onClick={() => setAccordion((v) => !v)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                accordion ? "bg-primary" : "bg-input"
+              }`}
+            >
+              <span
+                className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                  accordion ? "translate-x-4" : "translate-x-0"
                 }`}
               />
             </button>
