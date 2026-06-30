@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Loader2, Check, Search, AlertCircle, RefreshCw, Send, X, CalendarRange,
-  Trash2,
+  Loader2, Check, Search, AlertCircle, RefreshCw, Send, X, CalendarRange, ChevronDown,Trash2
 } from "lucide-react";
 import { Input }   from "@/components/ui/input";
 import { Label }   from "@/components/ui/label";
@@ -25,8 +24,8 @@ const HEADERS: Record<string, string> = {
 
 // const STATIC_PAYLOAD = { form_id: 16, step_key: "assets" };
 // const STATIC_PAYLOAD = { form_id: 25, step_key: "Seocnd" };
-// const STATIC_PAYLOAD = { form_id: 24, step_key: "field_investigation" };
-const STATIC_PAYLOAD = { form_id: 17, step_key: "family_details" };
+const STATIC_PAYLOAD = { form_id: 24, step_key: "kyc_and_documents" };
+// const STATIC_PAYLOAD = { form_id: 17, step_key: "family_details" };
 // const STATIC_PAYLOAD = { form_id: 15, step_key: "personal_info" };
 
 const dummyData = {
@@ -111,8 +110,8 @@ const dummyData = {
                 "step_key": "co_applicant_details",
                 "step_name": "Co-Applicant Details",
                 "step_order": 1,
+                "accordion": 1,
                 "repeatable": 1,
-                // "repeatable_section": 1,
                 "is_mandatory": 1,
                 "is_skippable": 0,
                 "rendered_json": {
@@ -319,7 +318,7 @@ const dummyData = {
                     //         "type": "database",
                     //         "method": "POST",
                     //         "trigger": "onClick",
-                    //         "endpoint": "gateway\/internal\/getPincode",
+                    //         "endpoint": "gateway\/internal\/submitPD",
                     //         "source_key": "PINCODE_DB",
                     //         "response_mapping": {
                     //             "city": "city",
@@ -331,7 +330,8 @@ const dummyData = {
                     ]
                 },
                 "sub_steps": []
-            },{
+            },
+            {
             "id": 70,
                 "form_id": 17,
                 "parent_step_id": 66,
@@ -339,38 +339,39 @@ const dummyData = {
                 "step_name": "Form Submission",
                 "step_order": 2,
                 "repeatable": 0,
-                // "repeatable_section": 1,
                 "is_mandatory": 1,
                 "is_skippable": 0,
                 "rendered_json": {
                     "fields": [
                         {
-                        "ui": {
-                            "visible": true,
-                            "editable": true
-                        },
-                        "key": "submit_btn",
-                        "type": "button",
-                        "label": "Submit",
-                        "grid_width": 12,
-                        "responsive": {
-                            "lg": 12,
-                            "md": 12,
-                            "sm": 12
-                        },
-                        "data_source": {
-                            "type": "database",
-                            "method": "POST",
-                            "trigger": "onClick",
-                            "endpoint": "gateway\/internal\/getPincode",
-                            "source_key": "PINCODE_DB",
-                            "response_mapping": {
-                                "city": "city",
-                                "state": "state",
-                                "district": "district"
-                            }
-                        }
-                    }
+                          "ui": {
+                              "visible": true,
+                              "editable": true
+                          },
+                          "key": "submit_btn",
+                          "type": "button",
+                          "label": "Submit",
+                          "grid_width": 12,
+                          "responsive": {
+                              "lg": 4,
+                              "md": 4,
+                              "sm": 12
+                          },
+                          "required": false,
+                          "help_text": "",
+                          "max_value": "",
+                          "min_value": "",
+                          "data_source": {
+                              "type": "api",
+                              "method": "POST",
+                              "trigger": "onClick",
+                              "endpoint": "gateway\/internal\/submitPD",
+                              "source_key": "SUBMIT_PD",
+                              "source_name": "Submit PD",
+                              "response_mapping": []
+                          },
+                          "placeholder": ""
+                      }
                     ]
                 }
             }
@@ -455,6 +456,7 @@ interface SubStep {
   step_name: string;
   step_order: number;
   repeatable: 0 | 1 | boolean;  // duplicates the WHOLE section/card (with Add More / Remove)
+  accordion: 0 | 1 | boolean;   // collapses the section into a togglable accordion
   rendered_json: { fields: FieldDef[] };
   sub_steps?: SubStep[];
 }
@@ -828,7 +830,20 @@ function DataSourceField({
 
   const handleChange = (v: string) => {
     const capped = field.validation?.max_length ? v.slice(0, field.validation.max_length) : v;
-    onChange(capped); setFilled(false); setFetchErr("");
+    onChange(capped);
+    setFetchErr("");
+
+    // If data was already fetched and the user is now editing the trigger field,
+    // immediately blank out all response-mapped fields so stale data isn't shown
+    // while waiting for the next fetch (or if the new value never satisfies regex).
+    if (filled) {
+      const cleared: Record<string, string> = {};
+      for (const tgt of Object.values(ds.response_mapping ?? {}))
+        cleared[tgt as string] = "";
+      onAutoFill(cleared);
+      setFilled(false);
+    }
+
     if (debRef.current) clearTimeout(debRef.current);
     debRef.current = setTimeout(() => doFetch(capped), 600);
   };
@@ -1192,7 +1207,8 @@ function FormField({
 
 function SectionForm({
   sectionKey, title, fields, sectionValues, errors,
-  onSectionChange, onSectionAutoFill, onAction, onValidateAndGetPayload, showTitle = true,
+  onSectionChange, onSectionAutoFill, onAction, onValidateAndGetPayload,
+  showTitle = true, accordion = false,
 }: {
   sectionKey: string; title: string; fields: FieldDef[];
   sectionValues: Record<string, any>; errors: Record<string, string>;
@@ -1201,40 +1217,84 @@ function SectionForm({
   onAction?: (action: string) => void;
   onValidateAndGetPayload: () => Record<string, any> | null;
   showTitle?: boolean;
+  accordion?: boolean;
 }) {
-  const hiddenByAction = buildHiddenByAction(fields, sectionValues);
-  const visible = fields.filter((f) => isFieldVisible(f, sectionValues, hiddenByAction));
+  const [open, setOpen] = useState(!accordion); // accordion starts collapsed; normal starts open
+  const hiddenByAction  = buildHiddenByAction(fields, sectionValues);
+  const visible         = fields.filter((f) => isFieldVisible(f, sectionValues, hiddenByAction));
+
+  // Count errors belonging to this section so the accordion header can warn when collapsed
+  const sectionErrorCount = Object.keys(errors).filter((k) => k.startsWith(`${sectionKey}.`)).length;
+
   if (visible.length === 0 && !showTitle) return null;
+
+  const header = (showTitle || accordion) && (
+    <div
+      className={cn(
+        "flex items-center justify-between px-5 py-3 bg-muted/40 border-b border-border",
+        accordion && "cursor-pointer select-none hover:bg-muted/60 transition-colors"
+      )}
+      onClick={() => accordion && setOpen((o) => !o)}
+      role={accordion ? "button" : undefined}
+      aria-expanded={accordion ? open : undefined}
+    >
+      <div className="flex items-center gap-2">
+        <h4 className="text-xs font-semibold text-foreground">{title}</h4>
+        {/* Show error badge on collapsed accordion so user knows fields need attention */}
+        {accordion && !open && sectionErrorCount > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+            <AlertCircle className="size-2.5 shrink-0" />{sectionErrorCount}
+          </span>
+        )}
+      </div>
+      {accordion && (
+        <ChevronDown
+          className={cn(
+            "size-4 text-muted-foreground transition-transform duration-200",
+            open && "rotate-180"
+          )}
+        />
+      )}
+    </div>
+  );
+
+  const body = (
+    <div className="p-5">
+      {visible.length === 0
+        ? <p className="text-xs text-muted-foreground/50 text-center py-4">No fields configured</p>
+        : (
+          <div className="grid grid-cols-12 gap-x-4 gap-y-5">
+            {visible.map((field) => (
+              <div key={field.key} className={colSpan(field)}>
+                <FormField
+                  field={field}
+                  value={sectionValues[field.key]}
+                  onChange={(key, val) => onSectionChange(sectionKey, key, val)}
+                  onAutoFill={(key, mapping) => onSectionAutoFill(sectionKey, key, mapping)}
+                  onAction={onAction}
+                  onValidateAndGetPayload={onValidateAndGetPayload}
+                  errors={errors}
+                  errPrefix={sectionKey}
+                />
+              </div>
+            ))}
+          </div>
+        )
+      }
+    </div>
+  );
 
   return (
     <div className="border border-border rounded-xl overflow-hidden">
-      {showTitle && (
-        <div className="px-5 py-3 bg-muted/40 border-b border-border">
-          <h4 className="text-xs font-semibold text-foreground">{title}</h4>
-        </div>
-      )}
-      <div className="p-5">
-        {visible.length === 0
-          ? <p className="text-xs text-muted-foreground/50 text-center py-4">No fields configured</p>
-          : (
-            <div className="grid grid-cols-12 gap-x-4 gap-y-5">
-              {visible.map((field) => (
-                <div key={field.key} className={colSpan(field)}>
-                  <FormField
-                    field={field}
-                    value={sectionValues[field.key]}
-                    onChange={(key, val) => onSectionChange(sectionKey, key, val)}
-                    onAutoFill={(key, mapping) => onSectionAutoFill(sectionKey, key, mapping)}
-                    onAction={onAction}
-                    onValidateAndGetPayload={onValidateAndGetPayload}
-                    errors={errors}
-                    errPrefix={sectionKey}
-                  />
-                </div>
-              ))}
-            </div>
-          )
-        }
+      {header}
+      {/* Animate height when accordion; always visible when normal */}
+      <div
+        className={cn(
+          "transition-all duration-200 ease-in-out",
+          accordion && !open ? "max-h-0 overflow-hidden" : "max-h-[9999px]"
+        )}
+      >
+        {body}
       </div>
     </div>
   );
@@ -1407,15 +1467,15 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   const load = async () => {
     setLoading(true); setFetchError("");
     try {
-      const res = await fetch(`${BASE_URL}/formBuilder/getActiveSubSectionByStepkey`, {
-        method: "POST", headers: HEADERS,
-        body: JSON.stringify(formId && stepKey ? { form_id: formId, step_key: stepKey } : STATIC_PAYLOAD),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (!json.success) throw new Error(json.message || "Failed to load step");
-      setStepData(json.data);
-      // setStepData(dummyData as StepData); // Using dummy data for demonstration
+      // const res = await fetch(`${BASE_URL}/formBuilder/getActiveSubSectionByStepkey`, {
+      //   method: "POST", headers: HEADERS,
+      //   body: JSON.stringify(formId && stepKey ? { form_id: formId, step_key: stepKey } : STATIC_PAYLOAD),
+      // });
+      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // const json = await res.json();
+      // if (!json.success) throw new Error(json.message || "Failed to load step");
+      // setStepData(json.data);
+      setStepData(dummyData as StepData); // Using dummy data for demonstration
     } catch (e: any) {
       setFetchError(e.message || "Failed to load form");
     } finally { setLoading(false); }
@@ -1585,7 +1645,8 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
                 fields={sub.rendered_json?.fields ?? []}
                 sectionValues={sectionValues[sub.step_key] ?? {}}
                 errors={errors} onSectionChange={handleChange} onSectionAutoFill={handleAutoFill}
-                onAction={handleAction} onValidateAndGetPayload={validateAndGetPayload} showTitle />
+                onAction={handleAction} onValidateAndGetPayload={validateAndGetPayload}
+                showTitle accordion={Boolean(sub.accordion)} />
             )
           )}
         </div>
@@ -1606,13 +1667,13 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
       )}
 
       {/* Fallback submit — hidden when form has inline button fields */}
-      {/* {!hasInlineSubmit && (
+      {!hasInlineSubmit && (
         <div className="flex justify-end pt-1">
           <Button onClick={handleSubmit} className="gap-2">
             <Send className="size-3.5" />Submit
           </Button>
         </div>
-      )} */}
+      )}
     </div>
   );
 }
