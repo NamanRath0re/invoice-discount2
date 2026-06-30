@@ -1221,7 +1221,12 @@ function SectionForm({
 }) {
   const [open, setOpen] = useState(!accordion); // accordion starts collapsed; normal starts open
   const hiddenByAction  = buildHiddenByAction(fields, sectionValues);
-  const visible         = fields.filter((f) => isFieldVisible(f, sectionValues, hiddenByAction));
+  // Button fields are pulled out of the normal flow and rendered once at the
+  // bottom of the whole form (see FormRenderer) regardless of where they sit
+  // in rendered_json — so they're excluded here entirely.
+  const visible = fields.filter(
+    (f) => f.type !== "button" && isFieldVisible(f, sectionValues, hiddenByAction)
+  );
 
   // Count errors belonging to this section so the accordion header can warn when collapsed
   const sectionErrorCount = Object.keys(errors).filter((k) => k.startsWith(`${sectionKey}.`)).length;
@@ -1350,7 +1355,9 @@ function RepeatableCardSection({
       {cards.map((cardValues, cardIdx) => {
         const cardKey        = `${subStep.step_key}[${cardIdx}]`;
         const hiddenByAction = buildHiddenByAction(fields, cardValues);
-        const visible        = fields.filter((f) => isFieldVisible(f, cardValues, hiddenByAction));
+        const visible = fields.filter(
+          (f) => f.type !== "button" && isFieldVisible(f, cardValues, hiddenByAction)
+        );
 
         return (
           <div key={cardIdx} className="border border-border rounded-xl overflow-hidden">
@@ -1583,9 +1590,17 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   const hasParent    = parentFields.length > 0;
   const hasSubSteps  = subSteps.length > 0;
 
-  // Hide the bottom Submit button when the form already has a button field
-  const hasInlineSubmit = [...parentFields, ...subSteps.flatMap((s) => s.rendered_json?.fields ?? [])]
-    .some((f) => f.type === "button");
+  // Collect every button field defined anywhere in rendered_json — parent fields
+  // and all sub-step fields — regardless of nesting or position. These are pulled
+  // out of the normal field flow (SectionForm / RepeatableCardSection filter them
+  // out) and rendered together here, at the bottom, in place of the fallback
+  // Submit button.
+  const allButtonFields: FieldDef[] = [
+    ...parentFields,
+    ...subSteps.flatMap((s) => s.rendered_json?.fields ?? []),
+  ].filter((f) => f.type === "button");
+
+  const hasInlineSubmit = allButtonFields.length > 0;
 
   if (submitted) return (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-5 py-8 flex flex-col items-center gap-3 text-center">
@@ -1666,8 +1681,25 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
         </div>
       )}
 
-      {/* Fallback submit — hidden when form has inline button fields */}
-      {!hasInlineSubmit && (
+      {/* Buttons — rendered here regardless of where they're defined in rendered_json.
+          Falls back to a generic Submit button only when the form has no button fields. */}
+      {hasInlineSubmit ? (
+        <div className="flex flex-wrap justify-end gap-2 pt-1">
+          {allButtonFields.map((btnField) => {
+            const editable = btnField.ui?.editable ?? true;
+            return (
+              <div key={btnField.key} className="min-w-[140px]">
+                <ButtonField
+                  field={btnField}
+                  disabled={!editable}
+                  onValidateAndGetPayload={validateAndGetPayload}
+                  onAction={handleAction}
+                />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
         <div className="flex justify-end pt-1">
           <Button onClick={handleSubmit} className="gap-2">
             <Send className="size-3.5" />Submit
