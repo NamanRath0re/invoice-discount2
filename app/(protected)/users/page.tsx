@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Loader2, Check, Search, AlertCircle, RefreshCw, Send, X, CalendarRange, ChevronDown,Trash2
+  Loader2, Check, Search, AlertCircle, RefreshCw, Send, X, CalendarRange, ChevronDown, ChevronRight,Trash2
 } from "lucide-react";
 import { Input }   from "@/components/ui/input";
 import { Label }   from "@/components/ui/label";
@@ -24,7 +24,8 @@ const HEADERS: Record<string, string> = {
 
 // const STATIC_PAYLOAD = { form_id: 16, step_key: "assets" };
 // const STATIC_PAYLOAD = { form_id: 25, step_key: "Seocnd" };
-const STATIC_PAYLOAD = { form_id: 24, step_key: "kyc_and_documents" };
+// const STATIC_PAYLOAD = { form_id: 24, step_key: "income_details" };
+const STATIC_PAYLOAD = { form_id: 24, step_key: "personal_discussion" };
 // const STATIC_PAYLOAD = { form_id: 17, step_key: "family_details" };
 // const STATIC_PAYLOAD = { form_id: 15, step_key: "personal_info" };
 
@@ -110,7 +111,7 @@ const dummyData = {
                 "step_key": "co_applicant_details",
                 "step_name": "Co-Applicant Details",
                 "step_order": 1,
-                "accordion": 1,
+                "accordion": 0,
                 "repeatable": 1,
                 "is_mandatory": 1,
                 "is_skippable": 0,
@@ -233,36 +234,36 @@ const dummyData = {
                             "grid_width": 4
                         },
                         {
-                        "ui": {
-                            "visible": true,
-                            "editable": true
-                        },
-                        "key": "pincode",
-                        "type": "text",
-                        "label": "Pincode",
-                        "required": true,
-                        "grid_width": 12,
-                        "responsive": {
-                            "lg": 4,
-                            "md": 4,
-                            "sm": 12
-                        },
-                        "validation": {
-                            "regex": "^[0-9]{6}$",
-                            "max_length": 6
-                        },
-                        "data_source": {
-                            "type": "database",
-                            "method": "POST",
-                            "trigger": "onChange",
-                            "endpoint": "gateway\/internal\/getPincode",
-                            "source_key": "PINCODE_DB",
-                            "response_mapping": {
-                                "city": "city",
-                                "state": "state"
-                            }
-                        },
-                        "placeholder": "Enter Pincode"
+                          "ui": {
+                              "visible": true,
+                              "editable": true
+                          },
+                          "key": "pincode",
+                          "type": "text",
+                          "label": "Pincode",
+                          "required": true,
+                          "grid_width": 12,
+                          "responsive": {
+                              "lg": 4,
+                              "md": 4,
+                              "sm": 12
+                          },
+                          "validation": {
+                              "regex": "^[0-9]{6}$",
+                              "max_length": 6
+                          },
+                          "data_source": {
+                              "type": "database",
+                              "method": "POST",
+                              "trigger": "onChange",
+                              "endpoint": "gateway\/internal\/getPincode",
+                              "source_key": "PINCODE_DB",
+                              "response_mapping": {
+                                  "city": "city",
+                                  "state": "state"
+                              }
+                          },
+                          "placeholder": "Enter Pincode"
                     },
                     {
                         "ui": {
@@ -1314,15 +1315,17 @@ function SectionForm({
 // "Remove" button (hidden on the first card).
 
 function RepeatableCardSection({
-  subStep, errors, onCardsChange, onAction, onValidateAndGetPayload,
+  subStep, errors, onCardsChange, onAction, onValidateAndGetPayload, accordion = false,
 }: {
   subStep: SubStep; errors: Record<string, string>;
   onCardsChange: (stepKey: string, cards: Record<string, any>[]) => void;
   onAction?: (action: string) => void;
   onValidateAndGetPayload: () => Record<string, any> | null;
+  accordion?: boolean;
 }) {
   const fields = subStep.rendered_json?.fields ?? [];
   const [cards, setCards] = useState<Record<string, any>[]>([{}]);
+  const [open, setOpen]   = useState(!accordion); // accordion starts collapsed; normal starts open
 
   // Notify parent AFTER React has committed the new cards state, not during render.
   // Calling onCardsChange (which does setRepeatableCards in FormRenderer) inside
@@ -1342,7 +1345,10 @@ function RepeatableCardSection({
   const handleAutoFill = (cardIdx: number, _key: string, mapping: Record<string, string>) =>
     setCards((prev) => prev.map((c, i) => (i === cardIdx ? { ...c, ...mapping } : c)));
 
-  return (
+  // Count errors across all cards so the collapsed accordion header can warn
+  const totalErrorCount = Object.keys(errors).filter((k) => k.startsWith(`${subStep.step_key}[`)).length;
+
+  const body = (
     <div className="space-y-4">
       {/* Header — title + Add More */}
       <div className="flex items-center justify-between">
@@ -1397,6 +1403,57 @@ function RepeatableCardSection({
           </div>
         );
       })}
+    </div>
+  );
+
+  // ── Plain (non-accordion) mode: render the repeatable structure as-is ──────
+  if (!accordion) return body;
+
+  // ── Accordion mode: wrap the entire repeatable structure (Add More + all
+  //    cards) in a single collapsible shell, matching SectionForm's header style ──
+  return (
+    <div className="border border-border rounded-xl overflow-hidden">
+      <div
+        className="flex items-center justify-between px-5 py-3 bg-muted/40 border-b border-border cursor-pointer select-none hover:bg-muted/60 transition-colors"
+        onClick={() => setOpen((o) => !o)}
+        role="button"
+        aria-expanded={open}
+      >
+        <div className="flex items-center gap-2">
+          <ChevronRight
+            className={cn(
+              "size-4 text-muted-foreground transition-transform duration-200 shrink-0",
+              open && "rotate-90"
+            )}
+          />
+          <h4 className="text-xs font-semibold text-foreground">{subStep.step_name}</h4>
+          <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-950/40 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400">
+            Repeatable
+          </span>
+          <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-950/40 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+            Accordion
+          </span>
+          {!open && totalErrorCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+              <AlertCircle className="size-2.5 shrink-0" />{totalErrorCount}
+            </span>
+          )}
+        </div>
+        <ChevronDown
+          className={cn(
+            "size-4 text-muted-foreground transition-transform duration-200",
+            open && "rotate-180"
+          )}
+        />
+      </div>
+      <div
+        className={cn(
+          "transition-all duration-200 ease-in-out",
+          !open ? "max-h-0 overflow-hidden" : "max-h-[9999px]"
+        )}
+      >
+        <div className="p-5 bg-muted/20">{body}</div>
+      </div>
     </div>
   );
 }
@@ -1474,15 +1531,15 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   const load = async () => {
     setLoading(true); setFetchError("");
     try {
-      // const res = await fetch(`${BASE_URL}/formBuilder/getActiveSubSectionByStepkey`, {
-      //   method: "POST", headers: HEADERS,
-      //   body: JSON.stringify(formId && stepKey ? { form_id: formId, step_key: stepKey } : STATIC_PAYLOAD),
-      // });
-      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // const json = await res.json();
-      // if (!json.success) throw new Error(json.message || "Failed to load step");
-      // setStepData(json.data);
-      setStepData(dummyData as StepData); // Using dummy data for demonstration
+      const res = await fetch(`${BASE_URL}/formBuilder/getActiveSubSectionByStepkey`, {
+        method: "POST", headers: HEADERS,
+        body: JSON.stringify(formId && stepKey ? { form_id: formId, step_key: stepKey } : STATIC_PAYLOAD),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to load step");
+      setStepData(json.data);
+      // setStepData(dummyData as StepData); // Using dummy data for demonstration
     } catch (e: any) {
       setFetchError(e.message || "Failed to load form");
     } finally { setLoading(false); }
@@ -1623,7 +1680,8 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold">{stepData.parent_step.parent_step_name}</h2>
-          <p className="text-xs text-muted-foreground font-mono mt-0.5">{stepData.parent_step.parent_step_key}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Please fill in all the required information</p>
+          {/* <p className="text-xs text-muted-foreground font-mono mt-0.5">{stepData.parent_step.parent_step_key}</p> */}
         </div>
         <div className="flex items-center gap-1.5">
           {hasSubSteps && <Badge variant="outline" className="text-xs">{subSteps.length} sub-section{subSteps.length !== 1 ? "s" : ""}</Badge>}
@@ -1654,7 +1712,8 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
             Boolean(sub.repeatable) ? (
               <RepeatableCardSection key={sub.step_key} subStep={sub} errors={errors}
                 onCardsChange={handleCardsChange} onAction={handleAction}
-                onValidateAndGetPayload={validateAndGetPayload} />
+                onValidateAndGetPayload={validateAndGetPayload}
+                accordion={Boolean(sub.accordion)} />
             ) : (
               <SectionForm key={sub.step_key} sectionKey={sub.step_key} title={sub.step_name}
                 fields={sub.rendered_json?.fields ?? []}
