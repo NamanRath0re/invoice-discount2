@@ -30,7 +30,7 @@ const STATIC_PAYLOAD = { form_id: 24, step_key: "personal_discussion" };
 // const STATIC_PAYLOAD = { form_id: 15, step_key: "personal_info" };
 
 const dummyData = {
-  "parent_step": {
+          "parent_step": {
             "id": 66,
             "form_id": 17,
             "parent_step_key": "family_details",
@@ -379,8 +379,6 @@ const dummyData = {
         ]
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface Validation {
   regex?: string;
   max_length?: number;
@@ -394,7 +392,7 @@ interface DataSource {
   method: string;
   trigger: string;
   endpoint?: string;
-  source_key?: string;                      // identifier for the backend data source
+  source_key?: string;                      
   response_mapping?: Record<string, string>;
 }
 
@@ -432,8 +430,7 @@ interface FieldDef {
   width?: string;
   grid_width?: number;
   responsive?: ResponsiveWidth;
-  size?: "sm" | "md" | "lg" | "default" | "icon"; // shadcn Button size
-  // behaviour
+  size?: "sm" | "md" | "lg" | "default" | "icon"; 
   required?: boolean;
   placeholder?: string;
   help_text?: string;
@@ -447,7 +444,6 @@ interface FieldDef {
   multi_select?: boolean;
   multi_upload?: boolean;
   date_range?: boolean;
-  // button-level overrides (variant / label already on top-level; kept for back-compat)
   variant?: "default" | "outline" | "secondary" | "destructive" | "ghost" | "link";
 }
 
@@ -456,8 +452,8 @@ interface SubStep {
   step_key: string;
   step_name: string;
   step_order: number;
-  repeatable: 0 | 1 | boolean;  // duplicates the WHOLE section/card (with Add More / Remove)
-  accordion: 0 | 1 | boolean;   // collapses the section into a togglable accordion
+  repeatable: 0 | 1 | boolean;  
+  accordion: 0 | 1 | boolean;   
   rendered_json: { fields: FieldDef[] };
   sub_steps?: SubStep[];
 }
@@ -474,8 +470,6 @@ interface StepData {
   sub_steps: SubStep[];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function parseWidth(field: FieldDef): number {
   if (field.width) {
     const n = parseInt(field.width.split("/")[0], 10);
@@ -486,7 +480,6 @@ function parseWidth(field: FieldDef): number {
   return 12;
 }
 
-// Tailwind requires full static class names — no dynamic interpolation
 const SM_SPAN: Record<number, string> = {
   1:"col-span-1",2:"col-span-2",3:"col-span-3",4:"col-span-4",
   5:"col-span-5",6:"col-span-6",7:"col-span-7",8:"col-span-8",
@@ -503,7 +496,6 @@ const LG_SPAN: Record<number, string> = {
   9:"lg:col-span-9",10:"lg:col-span-10",11:"lg:col-span-11",12:"lg:col-span-12",
 };
 
-// grid_width == lg per spec; sm defaults to 12 (full width on mobile)
 function colSpan(field: FieldDef): string {
   const r   = field.responsive;
   const lg  = r?.lg ?? parseWidth(field);
@@ -517,8 +509,6 @@ function colSpan(field: FieldDef): string {
 }
 
 const optVal = (o: FieldOption) => o.value ?? o.key ?? o.label;
-
-// ─── Visibility ───────────────────────────────────────────────────────────────
 
 function isFieldVisible(
   field: FieldDef,
@@ -673,9 +663,6 @@ function MultiSelectField({
   );
 }
 
-// ─── Checkbox group (when field has options) ──────────────────────────────────
-// value is string[] of selected option values
-
 function CheckboxGroupField({
   field, value, onChange, disabled, error,
 }: {
@@ -715,8 +702,6 @@ function CheckboxGroupField({
   );
 }
 
-// ─── Date Range ───────────────────────────────────────────────────────────────
-
 function DateRangeField({
   field, value, onChange, disabled, error,
 }: {
@@ -737,8 +722,6 @@ function DateRangeField({
     </div>
   );
 }
-
-// ─── Multi-Upload ─────────────────────────────────────────────────────────────
 
 function MultiUploadField({
   field, value, onChange, disabled, error,
@@ -788,8 +771,6 @@ function MultiUploadField({
   );
 }
 
-// ─── DataSource lookup field (text with auto-fetch) ───────────────────────────
-
 function DataSourceField({
   field, value, onChange, onAutoFill, disabled, error,
 }: {
@@ -833,10 +814,6 @@ function DataSourceField({
     const capped = field.validation?.max_length ? v.slice(0, field.validation.max_length) : v;
     onChange(capped);
     setFetchErr("");
-
-    // If data was already fetched and the user is now editing the trigger field,
-    // immediately blank out all response-mapped fields so stale data isn't shown
-    // while waiting for the next fetch (or if the new value never satisfies regex).
     if (filled) {
       const cleared: Record<string, string> = {};
       for (const tgt of Object.values(ds.response_mapping ?? {}))
@@ -868,19 +845,12 @@ function DataSourceField({
   );
 }
 
-// ─── Button field ─────────────────────────────────────────────────────────────
-// Clicking always:
-//   1. asks the parent to validate (onValidate → returns errors or null)
-//   2. if clean, POSTs to data_source.endpoint with the full form payload
-//   3. if no data_source, falls back to onAction("submit") for parent to handle
-
 function ButtonField({
   field, disabled, onValidateAndGetPayload, onAction,
 }: {
   field: FieldDef;
   disabled: boolean;
-  /** Parent runs validation; returns the payload if valid, or null if there are errors */
-  onValidateAndGetPayload: () => Record<string, any> | null;
+  onValidateAndGetPayload: () => Promise<Record<string, any> | null>;
   onAction?: (action: string) => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
@@ -895,11 +865,8 @@ function ButtonField({
     if (disabled || submitting) return;
     setStatus("idle"); setErrMsg("");
 
-    // Always validate first
-    const payload = onValidateAndGetPayload();
-    if (payload === null) return; // validation failed — errors shown in form
-
-    // If button has a data_source with an endpoint, POST directly
+    const payload = await onValidateAndGetPayload();
+    if (payload === null) return; 
     if (ds?.endpoint) {
       setSubmitting(true);
       try {
@@ -922,8 +889,6 @@ function ButtonField({
       }
       return;
     }
-
-    // No endpoint — parent handles the actual submission
     onAction?.("submit");
   };
 
@@ -959,8 +924,6 @@ function ButtonField({
   );
 }
 
-// ─── Single field renderer ────────────────────────────────────────────────────
-
 function FieldInput({
   field, value, onChange, onAutoFill, onAction, onValidateAndGetPayload, error,
 }: {
@@ -968,14 +931,13 @@ function FieldInput({
   onChange: (key: string, val: any) => void;
   onAutoFill: (key: string, mapping: Record<string, string>) => void;
   onAction?: (action: string) => void;
-  onValidateAndGetPayload: () => Record<string, any> | null;
+  onValidateAndGetPayload: () => Promise<Record<string, any> | null>;
   error?: string;
 }) {
   const editable    = field.ui?.editable ?? true;
   const disabled    = !editable;
   const disabledCls = disabled ? "bg-muted/50 cursor-not-allowed" : "";
 
-  // ── button type ───────────────────────────────────────────────────────────
   if (field.type === "button") {
     return (
       <ButtonField
@@ -987,7 +949,6 @@ function FieldInput({
     );
   }
 
-  // ── DataSource lookup fields (non-button) ─────────────────────────────────
   if (field.data_source && field.data_source.endpoint && editable) {
     return (
       <DataSourceField
@@ -1012,7 +973,6 @@ function FieldInput({
       );
 
     case "checkbox":
-      // ── Multi-option checkbox group ────────────────────────────────────
       if (field.options && field.options.length > 0) {
         return (
           <CheckboxGroupField
@@ -1024,7 +984,6 @@ function FieldInput({
           />
         );
       }
-      // ── Single boolean checkbox (no options) ───────────────────────────
       return (
         <div className="flex items-center gap-2 h-9">
           <input id={field.key} type="checkbox" disabled={disabled}
@@ -1153,8 +1112,6 @@ function FieldInput({
   }
 }
 
-// ─── Field wrapper (label + input + error) ────────────────────────────────────
-
 function FormField({
   field, value, onChange, onAutoFill, onAction, onValidateAndGetPayload, errors, errPrefix = "",
 }: {
@@ -1162,7 +1119,7 @@ function FormField({
   onChange: (key: string, val: any) => void;
   onAutoFill: (key: string, mapping: Record<string, string>) => void;
   onAction?: (action: string) => void;
-  onValidateAndGetPayload: () => Record<string, any> | null;
+  onValidateAndGetPayload: () => Promise<Record<string, any> | null>;
   errors: Record<string, string>;
   errPrefix?: string;
 }) {
@@ -1171,7 +1128,6 @@ function FormField({
   const isCheckbox = field.type === "checkbox" && !(field.options?.length);
   const isButton   = field.type === "button";
 
-  // Buttons: no label wrapper, no error display
   if (isButton) {
     return (
       <FieldInput field={field} value={value} onChange={onChange}
@@ -1182,7 +1138,6 @@ function FormField({
 
   return (
     <div className="space-y-1.5">
-      {/* Hide label for single boolean checkbox (rendered inline) */}
       {!isCheckbox && (
         <Label htmlFor={field.key} className="text-xs font-medium leading-none">
           {field.label}
@@ -1204,8 +1159,6 @@ function FormField({
   );
 }
 
-// ─── Section (parent or sub-step) ────────────────────────────────────────────
-
 function SectionForm({
   sectionKey, title, fields, sectionValues, errors,
   onSectionChange, onSectionAutoFill, onAction, onValidateAndGetPayload,
@@ -1216,20 +1169,16 @@ function SectionForm({
   onSectionChange: (section: string, key: string, val: any) => void;
   onSectionAutoFill: (section: string, key: string, mapping: Record<string, string>) => void;
   onAction?: (action: string) => void;
-  onValidateAndGetPayload: () => Record<string, any> | null;
+  onValidateAndGetPayload: () => Promise<Record<string, any> | null>;
   showTitle?: boolean;
   accordion?: boolean;
 }) {
-  const [open, setOpen] = useState(!accordion); // accordion starts collapsed; normal starts open
+  const [open, setOpen] = useState(!accordion);
   const hiddenByAction  = buildHiddenByAction(fields, sectionValues);
-  // Button fields are pulled out of the normal flow and rendered once at the
-  // bottom of the whole form (see FormRenderer) regardless of where they sit
-  // in rendered_json — so they're excluded here entirely.
   const visible = fields.filter(
     (f) => f.type !== "button" && isFieldVisible(f, sectionValues, hiddenByAction)
   );
 
-  // Count errors belonging to this section so the accordion header can warn when collapsed
   const sectionErrorCount = Object.keys(errors).filter((k) => k.startsWith(`${sectionKey}.`)).length;
 
   if (visible.length === 0 && !showTitle) return null;
@@ -1246,7 +1195,6 @@ function SectionForm({
     >
       <div className="flex items-center gap-2">
         <h4 className="text-xs font-semibold text-foreground">{title}</h4>
-        {/* Show error badge on collapsed accordion so user knows fields need attention */}
         {accordion && !open && sectionErrorCount > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
             <AlertCircle className="size-2.5 shrink-0" />{sectionErrorCount}
@@ -1293,7 +1241,6 @@ function SectionForm({
   return (
     <div className="border border-border rounded-xl overflow-hidden">
       {header}
-      {/* Animate height when accordion; always visible when normal */}
       <div
         className={cn(
           "transition-all duration-200 ease-in-out",
@@ -1306,30 +1253,19 @@ function SectionForm({
   );
 }
 
-// ─── Repeatable section (whole card duplicated) ───────────────────────────────
-// repeatable: true duplicates the ENTIRE card — title "Name - N", full grid
-// layout with labels above each field, a header "+ Add More" button, and a
-// per-card "Remove" button (hidden on the first card).
-// this duplicates the ENTIRE card — title "Name - N", full grid layout with
-// labels above each field, a header "+ Add More" button, and a per-card
-// "Remove" button (hidden on the first card).
-
 function RepeatableCardSection({
   subStep, errors, onCardsChange, onAction, onValidateAndGetPayload, accordion = false,
 }: {
   subStep: SubStep; errors: Record<string, string>;
   onCardsChange: (stepKey: string, cards: Record<string, any>[]) => void;
   onAction?: (action: string) => void;
-  onValidateAndGetPayload: () => Record<string, any> | null;
+  onValidateAndGetPayload: () => Promise<Record<string, any> | null>;
   accordion?: boolean;
 }) {
   const fields = subStep.rendered_json?.fields ?? [];
   const [cards, setCards] = useState<Record<string, any>[]>([{}]);
-  const [open, setOpen]   = useState(!accordion); // accordion starts collapsed; normal starts open
+  const [open, setOpen]   = useState(!accordion); 
 
-  // Notify parent AFTER React has committed the new cards state, not during render.
-  // Calling onCardsChange (which does setRepeatableCards in FormRenderer) inside
-  // a setCards updater triggers "setState during render" warnings.
   useEffect(() => {
     onCardsChange(subStep.step_key, cards);
   }, [cards]);
@@ -1406,11 +1342,8 @@ function RepeatableCardSection({
     </div>
   );
 
-  // ── Plain (non-accordion) mode: render the repeatable structure as-is ──────
   if (!accordion) return body;
 
-  // ── Accordion mode: wrap the entire repeatable structure (Add More + all
-  //    cards) in a single collapsible shell, matching SectionForm's header style ──
   return (
     <div className="border border-border rounded-xl overflow-hidden">
       <div
@@ -1458,7 +1391,6 @@ function RepeatableCardSection({
   );
 }
 
-// ─── Validation ───────────────────────────────────────────────────────────────
 
 function validateFields(
   fields: FieldDef[],
@@ -1468,7 +1400,7 @@ function validateFields(
   const errs: Record<string, string> = {};
   for (const field of fields) {
     if (!isFieldVisible(field, values, hiddenByAction)) continue;
-    if (field.type === "button") continue; // buttons are not validated
+    if (field.type === "button") continue; 
 
     const raw = values[field.key];
     const v   = field.validation;
@@ -1511,8 +1443,6 @@ function validateFields(
   }
   return errs;
 }
-
-// ─── Main FormRenderer ────────────────────────────────────────────────────────
 
 interface FormRendererProps {
   formId?: number;
@@ -1561,8 +1491,7 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     setRepeatableCards((p) => ({ ...p, [sk]: cards }));
   };
 
-  // Runs validation across all sections; returns the full payload if valid, null if errors exist
-  const validateAndGetPayload = useCallback((): Record<string, any> | null => {
+  const validateAndGetPayload = useCallback(async (): Promise<Record<string, any> | null> => {
     if (!stepData) return null;
     const allErrors: Record<string, string> = {};
 
@@ -1574,7 +1503,6 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
 
     for (const sub of stepData.sub_steps ?? []) {
       if (Boolean(sub.repeatable)) {
-        // Validate each duplicated card independently
         const subFields = sub.rendered_json?.fields ?? [];
         const cards     = repeatableCards[sub.step_key] ?? [{}];
         cards.forEach((cardVals, idx) => {
@@ -1596,16 +1524,91 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
       return null;
     }
 
-    return {
-      form_id:              formId ?? STATIC_PAYLOAD.form_id,
-      step_key:             stepData.parent_step.parent_step_key,
-      sections:             sectionValues,
-      repeatable_sections:  repeatableCards,
+    const serializeValue = async (field: FieldDef, raw: any): Promise<any> => {
+      if (raw === undefined || raw === null) return raw;
+
+      if (field.date_range && typeof raw === "object" && !Array.isArray(raw) && !(raw instanceof File)) {
+        return { start_date: raw.start ?? "", end_date: raw.end ?? "" };
+      }
+
+      if (raw instanceof File) {
+        return new Promise<string>((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res((r.result as string).split(",")[1] ?? "");
+          r.onerror = () => rej(new Error("File read failed"));
+          r.readAsDataURL(raw);
+        });
+      }
+
+      if (Array.isArray(raw) && raw[0] instanceof File) {
+        return Promise.all(raw.map((f: File) =>
+          new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res((r.result as string).split(",")[1] ?? "");
+            r.onerror = () => rej(new Error("File read failed"));
+            r.readAsDataURL(f);
+          })
+        ));
+      }
+
+      return raw; 
     };
+
+    const buildSectionPayload = async (
+      fields: FieldDef[],
+      values: Record<string, any>
+    ): Promise<Record<string, any>> => {
+      const result: Record<string, any> = {};
+      await Promise.all(
+        fields
+          .filter((f) => f.type !== "button")
+          .map(async (f) => {
+            result[f.key] = await serializeValue(f, values[f.key] ?? null);
+          })
+      );
+      return result;
+    };
+
+    const parentKey    = stepData.parent_step.parent_step_key;
+    const parentValsRaw = sectionValues["__parent__"] ?? {};
+
+    const subSteps = stepData.sub_steps ?? [];
+
+    const [parentSection, ...subSections] = await Promise.all([
+      buildSectionPayload(parentFields, parentValsRaw),
+      ...subSteps.map(async (sub) => {
+        if (Boolean(sub.repeatable)) {
+          const subFields = sub.rendered_json?.fields ?? [];
+          const cards     = repeatableCards[sub.step_key] ?? [{}];
+          const serializedCards = await Promise.all(
+            cards.map((cardVals) => buildSectionPayload(subFields, cardVals))
+          );
+          return { key: sub.step_key, value: serializedCards };
+        } else {
+          const subFields = sub.rendered_json?.fields ?? [];
+          const subVals   = sectionValues[sub.step_key] ?? {};
+          const serialized = await buildSectionPayload(subFields, subVals);
+          return { key: sub.step_key, value: serialized };
+        }
+      }),
+    ]);
+
+    const payload: Record<string, any> = {
+      form_id:  formId ?? STATIC_PAYLOAD.form_id,
+      step_key: stepData.parent_step.parent_step_key,
+      [parentKey]: parentSection,
+    };
+
+    for (const { key, value } of subSections) {
+      payload[key] = value;
+    }
+    console.log('payload---',payload);
+    
+    return payload;
   }, [stepData, sectionValues, repeatableCards, formId]);
 
-  const handleSubmit = useCallback(() => {
-    const payload = validateAndGetPayload();
+  const handleSubmit = useCallback(async () => {
+    const payload = await validateAndGetPayload();
     if (!payload) return;
     setSubmitted(true);
     console.log("[FormRenderer] Submit payload:", JSON.stringify(payload, null, 2));
@@ -1621,7 +1624,6 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
     }
   }, [handleSubmit]);
 
-  // ── Loading / error states ─────────────────────────────────────────────────
   if (loading) return (
     <div className="flex items-center justify-center py-24 gap-2 text-muted-foreground">
       <Loader2 className="size-4 animate-spin" />
@@ -1647,11 +1649,6 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
   const hasParent    = parentFields.length > 0;
   const hasSubSteps  = subSteps.length > 0;
 
-  // Collect every button field defined anywhere in rendered_json — parent fields
-  // and all sub-step fields — regardless of nesting or position. These are pulled
-  // out of the normal field flow (SectionForm / RepeatableCardSection filter them
-  // out) and rendered together here, at the bottom, in place of the fallback
-  // Submit button.
   const allButtonFields: FieldDef[] = [
     ...parentFields,
     ...subSteps.flatMap((s) => s.rendered_json?.fields ?? []),
@@ -1740,8 +1737,6 @@ export default function FormRenderer({ formId, stepKey }: FormRendererProps) {
         </div>
       )}
 
-      {/* Buttons — rendered here regardless of where they're defined in rendered_json.
-          Falls back to a generic Submit button only when the form has no button fields. */}
       {hasInlineSubmit ? (
         <div className="flex flex-wrap justify-end gap-2 pt-1">
           {allButtonFields.map((btnField) => {
